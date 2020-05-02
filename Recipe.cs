@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using static Utils;
 
 using u8 = System.Byte;
 
@@ -124,11 +125,14 @@ public class Recipe {
 	}
 
 	private u8 CalculateGeneration() {
-		u8 g = 0;
+		u8 g = 1;
 
+		u8 sub = 0;
 		foreach (Part part in this.demands) {
-			g++;
+			sub = max(sub, Recipe.Get(part.name).gen);
 		}
+
+		g += sub;
 
 		return g;
 	}
@@ -144,7 +148,7 @@ public class Recipe {
 		this.demands = demands;
 		this.provides = new List<string>();
 		this.plural = plural;
-		
+
 		foreach (Part part in production) {
 			this.provides.Add(part.name);
 

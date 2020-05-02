@@ -1,4 +1,5 @@
 ﻿using System;
+using u8 = System.Byte;
 
 public static class Utils {
     public static Part p(string name, double rate, string plural = "s") {
@@ -21,5 +22,17 @@ public static class Utils {
 
     public static Part p2(Recipe rcp, double rate) {
         return rcp.production[1];
+    }
+
+    public static double max(double one, double two) {
+        if (two > one)
+            return two;
+        return one;
+    }
+
+    public static u8 max(u8 one, u8 two) {
+        if (two > one)
+            return two;
+        return one;
     }
 }
