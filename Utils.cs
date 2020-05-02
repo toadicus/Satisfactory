@@ -17,11 +17,11 @@ public static class Utils {
 	}
 
 	public static Part p1(Recipe rcp, double rate) {
-		return rcp.production[0];
+		return rcp.production[0].Copy(rate);
 	}
 
 	public static Part p2(Recipe rcp, double rate) {
-		return rcp.production[1];
+		return rcp.production[1].Copy(rate);
 	}
 
 	public static double max(double one, double two) {
