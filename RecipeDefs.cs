@@ -7,6 +7,7 @@ public static class RecipeDefs {
 	public static Recipe coal = Recipe.New("Coal", 60, plural: "");
 	public static Recipe caterium_ore = Recipe.New("Caterium Ore", 60, plural: "");
 	public static Recipe raw_quartz = Recipe.New("Raw Quartz", 60, plural: "");
+	public static Recipe bauxite = Recipe.New("Bauxite", 60, plural: "");
 
 	public static Recipe concrete = Recipe.New("Concrete", 15, p(limestone, 45), plural: "");
 	public static Recipe iron_ingot = Recipe.New("Iron Ingot", 30, p(iron_ore, 30));
@@ -72,7 +73,6 @@ public static class RecipeDefs {
 	public static Recipe quartz_crystal = Recipe.New("Quartz Crystal", 22.5, p(raw_quartz, 37.5));
 	public static Recipe silica = Recipe.New("Silica", 37.5, p(raw_quartz, 22.5), plural: "");
 
-	public static Recipe bauxite = Recipe.New("Bauxite", 120, plural: "");
 	public static Recipe alumina_sln = Recipe.New((p("Alumina Solution", 80), p(silica, 20)), (p(bauxite, 70), p(water, 100)), plural: "");
 	public static Recipe aluminum_scrap = Recipe.New((p("Aluminum Scrap", 360), p(water, 60)), (p(alumina_sln, 240), p(petroleum_coke, 60)), plural: "");
 	public static Recipe aluminum_ingot = Recipe.New("Aluminum Ingot", 80, (p(aluminum_scrap, 240), p(silica, 140)));

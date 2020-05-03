@@ -92,6 +92,22 @@ public class Recipe {
 	public static Recipe Get(string name) {
 		return IndexByName[name];
 	}
+
+	public static Recipe CopyAtMultiplier(Recipe recipe, double multiplier) {
+		List<Part> newProd = new List<Part>();
+		List<Part> newDems = new List<Part>();
+
+		foreach (Part part in recipe.production) {
+			newProd.Add(part * multiplier);
+		}
+
+		foreach (Part part in recipe.demands) {
+			newDems.Add(part * multiplier);
+		}
+
+		return new Recipe(string.Format("{0}×{1:.3g}", recipe.name, multiplier), newProd, newDems, recipe.plural);
+	}
+
 	#endregion
 	public string name { get; }
 	public string plural { get; }
@@ -102,12 +118,25 @@ public class Recipe {
 
 	public u8 gen { get; }
 
+	[Obsolete("Recipe.part is a legacy method and should be avoided.")]
 	public Part part {
 		get {
-			// Returns the first part, because this is the most common use case.
+			// Returns the first part, because this is how it worked before.
 			return this.production[0];
 		}
 	}
+
+	public Part[] GetProductionAtMultiplier(double multiplier = 1d) {
+		Part[] prod = new Part[this.production.Count];
+
+		for (u8 idx = 0; idx < this.production.Count; idx++) {
+			prod[idx] = this.production[idx] * multiplier;
+		}
+
+		return prod;
+	}
+
+	// public Part[] GetNProductionByIndex(u8 idx, )
 
 	public bool Provides(Part part) {
 		return provides.Contains(part.name);
@@ -124,7 +153,7 @@ public class Recipe {
 			);
 	}
 
-	private u8 CalculateGeneration() {
+	protected u8 CalculateGeneration() {
 		u8 g = 1;
 
 		u8 sub = 0;

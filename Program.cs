@@ -9,6 +9,13 @@ namespace Satisfactory {
 			foreach (var rcp in rcpsByGen) {
 				Console.WriteLine(rcp);
 			}
+
+			Console.WriteLine("");
+
+			foreach (var bplan in BldgPlan.List) {
+				Console.WriteLine(bplan);
+				Console.WriteLine("");
+			}
 		}
 	}
 }

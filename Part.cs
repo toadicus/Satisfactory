@@ -24,7 +24,7 @@ public struct Part {
 	}
 
 	public string LongString() {
-		// TODO: Implement long string for parts once recipe lookup is available. 
+		// TODO: Implement long string for parts once recipe lookup is available.
 		return string.Format("{0} {1}", this.rate, this.name);
 	}
 
