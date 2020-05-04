@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Linq;
+using static RecipeDefs;
+using static BuildingDefs;
+using static Utils;
 
 namespace Satisfactory {
 	class Program {
@@ -16,6 +19,19 @@ namespace Satisfactory {
 				Console.WriteLine(bplan);
 				Console.WriteLine("");
 			}
+
+			Production production = stator.GetProductionAtMultiplier();
+
+			production.Add(steel_pipe.GetProduction());
+
+			print("***Gross Production:***");
+			production.PrintGross();
+
+			print("\n***Demands:***");
+			production.PrintDemands();
+
+			print("\n***Net Production:***");
+			production.PrintNet();
 		}
 	}
 }

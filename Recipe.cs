@@ -108,6 +108,20 @@ public class Recipe {
 		return new Recipe(string.Format("{0}×{1:.3g}", recipe.name, multiplier), newProd, newDems, recipe.plural);
 	}
 
+	public static Production Dive(Recipe rcp, Production prod = null) {
+		prod ??= new Production();
+
+		prod.Add(rcp.GetProduction());
+
+		foreach (Part part in prod.Net.Values) {
+			if (part.rate >= 0)
+				continue;
+
+			// WIP
+		}
+
+		return prod;
+	}
 	#endregion
 	public string name { get; }
 	public string plural { get; }
@@ -126,7 +140,11 @@ public class Recipe {
 		}
 	}
 
-	public (Part[], Part[]) GetProductionAtMultiplier(double multiplier = 1d) {
+	public Production GetProduction() {
+		return this.GetProductionAtMultiplier(1);
+	}
+
+	public Production GetProductionAtMultiplier(double multiplier = 1d) {
 		Part[] prod = new Part[this.production.Count];
 		Part[] dems = new Part[this.demands.Count];
 
@@ -138,10 +156,10 @@ public class Recipe {
 			dems[idx] = this.demands[idx] * multiplier;
 		}
 
-		return (prod, dems);
+		return new Production(prod, dems);
 	}
 
-	public (Part[], Part[]) GetNProductionByIndex(double req, u8 idx) {
+	public Production GetNProductionByIndex(double req, u8 idx) {
 		double rate = req / this.production[idx].rate;
 
 		return GetProductionAtMultiplier(rate);

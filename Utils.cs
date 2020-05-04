@@ -35,4 +35,30 @@ public static class Utils {
 			return two;
 		return one;
 	}
+
+	public static u8 max(params u8[] nums) {
+		u8 res = u8.MinValue;
+
+		foreach (u8 num in nums) {
+			res = max(num, res);
+		}
+
+		return res;
+	}
+
+	public static void print(object o) {
+		Console.WriteLine(o);
+	}
+
+	public static void print(params object[] args) {
+		Console.WriteLine(string.Join(" ", args));
+	}
+
+	public static void printf(string format, params object[] args) {
+		Console.WriteLine(format, args);
+	}
+
+	public static string Format(this string format, params object[] args) {
+		return string.Format(format, args);
+	}
 }
