@@ -126,17 +126,26 @@ public class Recipe {
 		}
 	}
 
-	public Part[] GetProductionAtMultiplier(double multiplier = 1d) {
+	public (Part[], Part[]) GetProductionAtMultiplier(double multiplier = 1d) {
 		Part[] prod = new Part[this.production.Count];
+		Part[] dems = new Part[this.demands.Count];
 
 		for (u8 idx = 0; idx < this.production.Count; idx++) {
 			prod[idx] = this.production[idx] * multiplier;
 		}
 
-		return prod;
+		for (u8 idx = 0; idx < this.demands.Count; idx++) {
+			dems[idx] = this.demands[idx] * multiplier;
+		}
+
+		return (prod, dems);
 	}
 
-	// public Part[] GetNProductionByIndex(u8 idx, )
+	public (Part[], Part[]) GetNProductionByIndex(double req, u8 idx) {
+		double rate = req / this.production[idx].rate;
+
+		return GetProductionAtMultiplier(rate);
+	}
 
 	public bool Provides(Part part) {
 		return provides.Contains(part.name);
