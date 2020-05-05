@@ -49,7 +49,7 @@ public static class RecipeDefs {
 
 	public static Recipe plastic = Recipe.New((p("Plastic", 20), p(heavy_residue, 10)), p(crude_oil, 30), plural: "");
 	public static Recipe rubber = Recipe.New((p("Rubber", 20), p(heavy_residue, 20)), p(crude_oil, 30), plural: "");
-	public static Recipe residual_rubber = Recipe.New("Residual Rubber", 20, (p(polymer_resin, 40), p(water, 40)), plural: "");
+	public static Recipe residual_rubber = Recipe.New("Residual Rubber", p(rubber, 20), (p(polymer_resin, 40), p(water, 40)), plural: "");
 
 	public static Recipe canister = Recipe.New("Empty Canister", 60, p(plastic, 30));
 

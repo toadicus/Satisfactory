@@ -17,12 +17,10 @@ namespace Satisfactory {
 
 			foreach (var bplan in BldgPlan.List) {
 				Console.WriteLine(bplan);
-				Console.WriteLine("");
+				Console.WriteLine();
 			}
 
-			Production production = stator.GetProductionAtMultiplier();
-
-			production.Add(steel_pipe.GetProduction());
+			Production production = Production.CalcMinProductionFor(stator);
 
 			print("***Gross Production:***");
 			production.PrintGross();
@@ -32,6 +30,8 @@ namespace Satisfactory {
 
 			print("\n***Net Production:***");
 			production.PrintNet();
+
+			print("\n", refinery.Build(fuel));
 		}
 	}
 }

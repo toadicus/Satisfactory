@@ -23,12 +23,6 @@ public struct Part {
 		return string.Format("{0} {1}", this.rate, this.name);
 	}
 
-	public string LongString() {
-		// TODO: Implement long string for parts once recipe lookup is available.
-		return string.Format("{0} {1}", this.rate, this.name);
-	}
-
-
 	public static Part operator +(Part lhs, Part rhs) {
 		if (lhs.name != rhs.name) {
 			throw new ArgumentException(string.Format("Parts may only be added to or subtracted from other parts of the same resource (got {0} and {1}).", lhs.name, rhs.name));

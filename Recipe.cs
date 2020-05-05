@@ -2,18 +2,19 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using static Utils;
+using static FuzzyCompare;
 
 using u8 = System.Byte;
 
 public class Recipe {
 	#region STATIC
 	public static Dictionary<string, Recipe> IndexByName { get; private set; }
-	public static Dictionary<string, List<Recipe>> IndexByProvides { get; private set; }
+	public static Dictionary<string, List<Recipe>> IndexByPart { get; private set; }
 	public static List<Recipe> List { get; private set; }
 
 	static Recipe() {
 		Recipe.IndexByName = new Dictionary<string, Recipe>();
-		Recipe.IndexByProvides = new Dictionary<string, List<Recipe>>();
+		Recipe.IndexByPart = new Dictionary<string, List<Recipe>>();
 		List = new List<Recipe>();
 
 		RuntimeHelpers.RunClassConstructor(typeof(RecipeDefs).TypeHandle);
@@ -23,33 +24,20 @@ public class Recipe {
 		return new Recipe(name, production, demands, plural);
 	}
 
-	public static Recipe New(string name, Part[] production, Part[] demands = null, string plural = "s") {
-		List<Part> prodParts = new List<Part>();
-		List<Part> demandParts = new List<Part>();
-
-		foreach (Part p in production) {
-			prodParts.Add(new Part(p.name, p.rate, p.plural));
-		}
-
-		if (!(demands is null)) {
-			foreach (Part p in demands) {
-				demandParts.Add(new Part(p.name, p.rate, p.plural));
-			}
-		}
-
-		return new Recipe(name, prodParts, demandParts, plural);
-	}
-
-	public static Recipe New(string name, ValueTuple<Part, Part> production, ValueTuple<Part, Part> demands, string plural = "s") {
-		return Recipe.New(name, new Part[] { production.Item1, production.Item2 }, new Part[] { demands.Item1, demands.Item2 }, plural);
-	}
-
 	public static Recipe New(ValueTuple<Part, Part> production, ValueTuple<Part, Part> demands, string plural = "s") {
 		return Recipe.New(production.Item1.name, production, demands, plural);
 	}
 
+	public static Recipe New(string name, ValueTuple<Part, Part> production, ValueTuple<Part, Part> demands, string plural = "s") {
+		return Recipe.New(name, new List<Part> { production.Item1, production.Item2 }, new List<Part> { demands.Item1, demands.Item2 }, plural);
+	}
+
+	public static Recipe New(string name, Part production, ValueTuple<Part, Part> demands, string plural = "s") {
+		return Recipe.New(name, new List<Part> { production }, new List<Part> { demands.Item1, demands.Item2 }, plural);
+	}
+
 	public static Recipe New(ValueTuple<Part, Part> production, Part demand, string plural = "s") {
-		return Recipe.New(production.Item1.name, new Part[] { production.Item1, production.Item2 }, new Part[] { demand }, plural);
+		return Recipe.New(production.Item1.name, new List<Part> { production.Item1, production.Item2 }, new List<Part> { demand }, plural);
 	}
 
 	public static Recipe New(string name, double rate, Part[] demands = null, string plural = "s") {
@@ -108,20 +96,6 @@ public class Recipe {
 		return new Recipe(string.Format("{0}×{1:.3g}", recipe.name, multiplier), newProd, newDems, recipe.plural);
 	}
 
-	public static Production Dive(Recipe rcp, Production prod = null) {
-		prod ??= new Production();
-
-		prod.Add(rcp.GetProduction());
-
-		foreach (Part part in prod.Net.Values) {
-			if (part.rate >= 0)
-				continue;
-
-			// WIP
-		}
-
-		return prod;
-	}
 	#endregion
 	public string name { get; }
 	public string plural { get; }
@@ -174,10 +148,7 @@ public class Recipe {
 	}
 
 	public override string ToString() {
-		return string.Format("{0} ({1})",
-			string.Join(", ", this.production.ConvertAll(p => p.ToString())),
-			string.Join(", ", this.demands.ConvertAll(p => p.ToString()))
-			);
+		return string.Join(", ", this.production.ConvertAll(p => p.ToString()));
 	}
 
 	protected u8 CalculateGeneration() {
@@ -208,10 +179,10 @@ public class Recipe {
 		foreach (Part part in production) {
 			this.provides.Add(part.name);
 
-			if (!IndexByProvides.ContainsKey(part.name)) {
-				IndexByProvides[part.name] = new List<Recipe>();
+			if (!IndexByPart.ContainsKey(part.name)) {
+				IndexByPart[part.name] = new List<Recipe>();
 			}
-			IndexByProvides[part.name].Add(this);
+			IndexByPart[part.name].Add(this);
 			IndexByName[part.name] = this;
 		}
 

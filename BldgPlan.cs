@@ -3,37 +3,6 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using u8 = System.Byte;
 
-public class Building {
-	public string Name { get; protected set; }
-	public BldgPlan Plan { get; protected set; }
-	public Recipe Assignment { get; set; }
-
-	protected double ocrate;
-	public double OCRate { get {
-			return ocrate;
-		}
-		set {
-			if (value < 0)
-				throw new ArgumentOutOfRangeException("Building.OCRate must be non-negative.");
-			this.ocrate = value;
-			this.Power = Plan.BasePower * Math.Pow(value, 1.6);
-		}
-	}
-
-	public double Power { get; protected set; }
-	public Part[] GetProduction() {
-		return Assignment.production.ToArray();
-	}
-
-	public Building(string name, BldgPlan plan, Recipe assignment = null, double ocrate = 1d) {
-		this.Name = name;
-		this.Plan = plan;
-		this.Power = plan.BasePower;
-		this.Assignment = assignment;
-		this.OCRate = ocrate;
-	}
-}
-
 public class BldgPlan {
 	public static List<BldgPlan> List;
 	public static Dictionary<string, BldgPlan> IndexByRecipe;
@@ -77,6 +46,10 @@ public class BldgPlan {
 
 	public List<Part> Costs { get; protected set; }
 	public double RateMultiplier { get; protected set; }
+
+	public Building Build(Recipe assignment = null, double ocrate = 1d) {
+		return new Building(this.Name, this, assignment, ocrate);
+	}
 
 	public override System.String ToString() {
 		return string.Format("Plan for {0} ({1} MW, costs: {2})\nBuilds:\n\t{3}", this.Name, this.BasePower, string.Join(", ", this.Costs), string.Join(",\n\t", this.BuildList));
