@@ -12,7 +12,7 @@ public struct Part {
 	}
 
 	public Part Copy(double newRate = double.NaN) {
-		if (newRate == double.NaN) {
+		if (newRate is double.NaN) {
 			newRate = this.rate;
 		}
 
@@ -20,7 +20,7 @@ public struct Part {
 	}
 
 	public override string ToString() {
-		return string.Format("{0} {1}", this.rate, this.name);
+		return string.Format("{0:G4} {1}", this.rate, this.name);
 	}
 
 	public static Part operator +(Part lhs, Part rhs) {

@@ -5,6 +5,7 @@ using static Utils;
 using static FuzzyCompare;
 
 using u8 = System.Byte;
+using System.Linq;
 
 public class Recipe {
 	#region STATIC
@@ -81,19 +82,43 @@ public class Recipe {
 		return IndexByName[name];
 	}
 
-	public static Recipe CopyAtMultiplier(Recipe recipe, double multiplier) {
+	public static Recipe CopyAtMultiplier(Recipe recipe) {
 		List<Part> newProd = new List<Part>();
 		List<Part> newDems = new List<Part>();
 
-		foreach (Part part in recipe.production) {
-			newProd.Add(part * multiplier);
+		return new Recipe(recipe.name, newProd, newDems, recipe.plural);
+	}
+
+	// WIP: Needs more heuristics.
+	public static bool FindRecipeFor(string name, out Recipe rcp) {
+		if (!BldgPlan.IndexByRecipe.ContainsKey(name)) {
+			Recipe bestRcp = null;
+			// There's no building that can directly produce this by name; let's look for other matches.
+			List<Recipe> rpcs = Recipe.IndexByPart[name];
+
+			var partRcps = rpcs.Where(r => BldgPlan.IndexByRecipe.ContainsKey(r.name));
+
+			double rate = 0d;
+
+			foreach (Recipe rRcp in partRcps) {
+				double rRate = rRcp.GetProductionOf(name).rate;
+				if (rRate > rate) {
+					rate = rRate;
+					bestRcp = rRcp;
+				}
+			}
+
+			rcp = bestRcp;
+		}
+		else if (Recipe.IndexByPart.ContainsKey(name)) {
+			rcp = Recipe.IndexByPart[name][0];
+		}
+		else {
+			// There's no recipe for a part with this name.
+			rcp = null;
 		}
 
-		foreach (Part part in recipe.demands) {
-			newDems.Add(part * multiplier);
-		}
-
-		return new Recipe(string.Format("{0}×{1:.3g}", recipe.name, multiplier), newProd, newDems, recipe.plural);
+		return rcp != null;
 	}
 
 	#endregion
@@ -137,6 +162,16 @@ public class Recipe {
 		double rate = req / this.production[idx].rate;
 
 		return GetProductionAtMultiplier(rate);
+	}
+
+	public Part GetProductionOf(string name) {
+		foreach (Part p in this.production) {
+			if (p.name == name) {
+				return p;
+			}
+		}
+
+		throw new ArgumentOutOfRangeException("Recipe {0} does not produce a part named {1}.".Format(this.name, name));
 	}
 
 	public bool Provides(Part part) {

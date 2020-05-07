@@ -44,19 +44,19 @@ public static class RecipeDefs {
 
 	public static Recipe crude_oil = Recipe.New("Crude Oil", 120, plural: "");
 	public static Recipe water = Recipe.New("Water", 120, plural: "");
-	public static Recipe heavy_residue = Recipe.New("Heavy Oil Residue", 1, plural: "");
+	// public static Recipe heavy_residue = Recipe.New("Heavy Oil Residue", 1, plural: "");
 	public static Recipe polymer_resin = Recipe.New("Polymer Resin", 1, plural: "");
 
-	public static Recipe plastic = Recipe.New((p("Plastic", 20), p(heavy_residue, 10)), p(crude_oil, 30), plural: "");
-	public static Recipe rubber = Recipe.New((p("Rubber", 20), p(heavy_residue, 20)), p(crude_oil, 30), plural: "");
+	public static Recipe plastic = Recipe.New((p("Plastic", 20), p("Heavy Oil Residue", 10)), p(crude_oil, 30), plural: "");
+	public static Recipe rubber = Recipe.New((p("Rubber", 20), p("Heavy Oil Residue", 20)), p(crude_oil, 30), plural: "");
 	public static Recipe residual_rubber = Recipe.New("Residual Rubber", p(rubber, 20), (p(polymer_resin, 40), p(water, 40)), plural: "");
 
 	public static Recipe canister = Recipe.New("Empty Canister", 60, p(plastic, 30));
 
 	public static Recipe fuel = Recipe.New((p("Fuel", 40), p(polymer_resin, 30)), p(crude_oil, 60), plural: "");
-	public static Recipe residual_fuel = Recipe.New("Residual Fuel", 40, p(heavy_residue, 60), plural: "");
+	public static Recipe residual_fuel = Recipe.New("Residual Fuel", 40, p("Heavy Oil Residue", 60), plural: "");
 	public static Recipe packaged_fuel = Recipe.New("Packaged Fuel", 40, (p(fuel, 40), p(canister, 40)), plural: "");
-	public static Recipe petroleum_coke = Recipe.New("Petroleum Coke", 120, p(heavy_residue, 40), plural: "");
+	public static Recipe petroleum_coke = Recipe.New("Petroleum Coke", 120, p("Heavy Oil Residue", 40), plural: "");
 
 	public static Recipe circuit_board = Recipe.New("Circuit Board", 7.5, (p(copper_sheet, 15), p(plastic, 30)));
 	public static Recipe computer = Recipe.New("Computer", 2.5, (p(circuit_board, 25), p(cable, 22.5), p(plastic, 45), p(screw, 130)));

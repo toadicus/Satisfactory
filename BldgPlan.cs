@@ -2,14 +2,21 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using u8 = System.Byte;
+using static FuzzyCompare;
+using static RecipeDefs;
+using static Utils;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Reflection;
 
 public class BldgPlan {
-	public static List<BldgPlan> List;
-	public static Dictionary<string, BldgPlan> IndexByRecipe;
+    #region STATIC
+    public static List<BldgPlan> List;
+	public static Dictionary<string, List<BldgPlan>> IndexByRecipe;
 
 	static BldgPlan() {
 		List = new List<BldgPlan>();
-		IndexByRecipe = new Dictionary<string, BldgPlan>();
+		IndexByRecipe = new Dictionary<string, List<BldgPlan>>();
 
 		RuntimeHelpers.RunClassConstructor(typeof(BuildingDefs).TypeHandle);
 	}
@@ -31,8 +38,185 @@ public class BldgPlan {
 		return new BldgPlan(name, basePower, cList, bList, rateMultiplier);
 	}
 
-	public string Name { get; protected set; }
+	public static BldgPlan GetPlanFor(Recipe rcp) {
+		BldgPlan plan = null;
+
+		double bestMult = 0d;
+
+		foreach (BldgPlan pot in IndexByRecipe[rcp.name]) {
+			if (pot.RateMultiplier > bestMult) {
+				bestMult = pot.RateMultiplier;
+				plan = pot;
+			}
+		}
+		if (plan is null) {
+			throw new Exception("We don't have a building for that.");
+		}
+
+		return plan;
+	}
+
+	public static Building MakeBuildingFor(Recipe rcp) {
+		return GetPlanFor(rcp).Build(rcp);
+	}
+
+	public static Building MakeBuildingForNofIndex(Recipe rcp, double rate, int index) {
+		Building bldg = GetPlanFor(rcp).Build();
+
+		bldg.SetOCRateForNofIndex(rate, index);
+
+		return bldg;
+	}
+
+	public static Building MakeBuildingForNofFirst(Recipe rcp, double rate) {
+		return MakeBuildingForNofIndex(rcp, rate, 0);
+	}
+
+	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double demandRate, int index, double exGross, int exCount, out double newOCRate) {
+		BldgPlan plan = GetPlanFor(rcp);
+
+		double newGross = demandRate + exGross;
+		double rcpRate = rcp.production[index].rate * plan.RateMultiplier;
+		double currMaxGross = rcpRate * exCount;
+
+		int count;
+
+		if (AlmostLte(newGross, currMaxGross)) {
+			newOCRate = newGross / currMaxGross;
+			count = 0;
+		}
+		else {
+			demandRate = newGross - currMaxGross;
+			count = (int)Math.Ceiling(demandRate / rcpRate);
+			newOCRate = newGross / (rcpRate * (exCount + count));
+		}
+
+		Building[] bldgs = new Building[count];
+
+		for (int idx = 0; idx < count; idx++) {
+			Building bldg = plan.Build(rcp, newOCRate);
+
+			bldgs[idx] = bldg;
+		}
+
+		return bldgs;
+	}
+
+
+	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double rate, int index, out double newOCRate) {
+		return MakeBuildingsForNofIndex(rcp, rate, index, 0d, 0, out newOCRate);
+	}
+
+
+	public static ValueTuple<List<Building>, Production> ProcessBuildings(List<Building> bldgs, bool ignoreCosts = false) {
+		u8 iters = 0;
+
+		Production prod = new Production();
+		Production costs = new Production();
+
+		List<Building> newBldgs = new List<Building>();
+		List<Part> missingCosts = null;
+
+		Dictionary<string, bool> partsToIngore = new Dictionary<string, bool>();
+
+		prod.AddBuildings(bldgs);
+
+		while (AlmostLt(prod.NetPower, 0d) || prod.HasNegativeNet() || (!ignoreCosts && missingCosts != null && missingCosts.Count > 0)) {
+			if (++iters > 10)
+				throw new Exception("This is running away.");
+
+			newBldgs.Clear();
+
+			if (!ignoreCosts && missingCosts != null) {
+				foreach (Part cost in missingCosts) {
+					Recipe rcp;
+					bool recipeExists = Recipe.FindRecipeFor(cost.name, out rcp);
+
+					if (recipeExists) {
+						newBldgs.Add(MakeBuildingFor(rcp));
+					}
+					else {
+						partsToIngore[cost.name] = true;
+					}
+				}
+
+				bldgs.AddRange(newBldgs);
+				prod.Clear();
+				prod.AddBuildings(bldgs);
+				newBldgs.Clear();
+			}
+
+			foreach (Part part in prod.Net.Values) {
+				if (AlmostGte(part.rate, 0))
+					continue;
+
+				Recipe rcp;
+				// TODO: Something with this.
+				bool _ = Recipe.FindRecipeFor(part.name, out rcp);
+
+				double currOCRate = 1d;
+				var partBldgs = bldgs.Where(b => !(b.Assignment is null)).Where(b => b.Assignment.name == part.name);
+				int exCount = partBldgs.Count();
+
+				if (prod.Gross.ContainsKey(part.name) && exCount > 0) {
+
+					currOCRate = partBldgs.First().OCRate;
+					double newOCRate;
+
+					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, prod.Gross[part.name].rate, exCount, out newOCRate));
+
+					if (newOCRate != currOCRate) {
+						foreach (Building partBldg in partBldgs) {
+							partBldg.OCRate = newOCRate;
+						}
+					}
+				}
+				else {
+					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, out currOCRate));
+				}
+			}
+
+			bldgs.AddRange(newBldgs);
+			prod.Clear();
+			prod.AddBuildings(bldgs);
+
+			if (AlmostLt(prod.NetPower, 0)) {
+				Generator[] newGens = GenrPlan.MakeGenrsForPower(-prod.NetPower, fuel.name);
+				bldgs.AddRange(newGens);
+			}
+
+			prod.Clear();
+			prod.AddBuildings(bldgs);
+
+			costs = Building.SummarizeCosts(bldgs);
+			missingCosts = Production.FindMissingCosts(costs, prod, partsToIngore);
+		}
+
+		return (bldgs, prod);
+	}
+
+	protected static void rebuildIndexByRecipe() {
+		IndexByRecipe.Clear();
+
+		foreach (BldgPlan plan in BldgPlan.List) {
+			if (plan.buildList is null)
+				continue;
+
+			foreach (Recipe rcp in plan.buildList) {
+				if (!IndexByRecipe.ContainsKey(rcp.name)) {
+					IndexByRecipe[rcp.name] = new List<BldgPlan>();
+				}
+
+				IndexByRecipe[rcp.name].Add(plan);
+			}
+		}
+	}
+    #endregion
+
+    public string Name { get; protected set; }
 	public double BasePower { get; protected set; }
+	public double RateMultiplier { get; protected set; }
+
 
 	protected List<Recipe> buildList;
 	public List<Recipe> BuildList {
@@ -41,13 +225,13 @@ public class BldgPlan {
 		}
 		set {
 			buildList = value;
+			rebuildIndexByRecipe();
 		}
 	}
 
 	public List<Part> Costs { get; protected set; }
-	public double RateMultiplier { get; protected set; }
 
-	public Building Build(Recipe assignment = null, double ocrate = 1d) {
+	public virtual Building Build(Recipe assignment = null, double ocrate = 1d) {
 		return new Building(this.Name, this, assignment, ocrate);
 	}
 

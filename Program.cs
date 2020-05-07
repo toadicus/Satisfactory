@@ -3,35 +3,26 @@ using System.Linq;
 using static RecipeDefs;
 using static BuildingDefs;
 using static Utils;
+using System.Collections.Generic;
 
 namespace Satisfactory {
 	class Program {
 		static void Main(string[] args) {
-			var rcpsByGen = Recipe.List.OrderBy(r => r.gen).ToArray();
+			List<Building> bldgs = new List<Building> {
+				foundry.Build(aluminum_ingot),
+				foundry.Build(aluminum_ingot),
+				foundry.Build(aluminum_ingot),
+			};
 
-			foreach (var rcp in rcpsByGen) {
-				Console.WriteLine(rcp);
-			}
+			(var result, var prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts: true);
 
-			Console.WriteLine("");
+			Building.PrintLikeBuildings(bldgs);
+			print();
 
-			foreach (var bplan in BldgPlan.List) {
-				Console.WriteLine(bplan);
-				Console.WriteLine();
-			}
+			Building.PrintCostSummary(bldgs);
+			print();
 
-			Production production = Production.CalcMinProductionFor(stator);
-
-			print("***Gross Production:***");
-			production.PrintGross();
-
-			print("\n***Demands:***");
-			production.PrintDemands();
-
-			print("\n***Net Production:***");
-			production.PrintNet();
-
-			print("\n", refinery.Build(fuel));
+			prod.PrintAll();
 		}
 	}
 }

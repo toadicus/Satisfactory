@@ -17,6 +17,8 @@ public static class BuildingDefs {
 	public static BldgPlan oil_extractor = BldgPlan.New("Oil Extractor", 40, (p1(motor, 15), p1(encased_beam, 20), p1(cable, 60)));
 	public static BldgPlan refinery = BldgPlan.New("Refinery", 30, (p1(motor, 10), p1(encased_beam, 10), p1(steel_pipe, 30), p1(copper_sheet, 20)));
 
+	public static GenrPlan fuel_generator = GenrPlan.New("Fuel Generator", 150, p1(fuel, 15), (p1(computer, 5), p1(heavy_modular_frame, 10), p1(motor, 15), p1(rubber, 50), p1(quickwire, 50)));
+
 	static BuildingDefs() {
 		miner.BuildList = new List<Recipe> {
 			iron_ore,
@@ -31,7 +33,7 @@ public static class BuildingDefs {
 		miner2.BuildList = new List<Recipe>();
 
 		foreach (Recipe rcp in miner.BuildList) {
-			miner2.BuildList.Add(Recipe.CopyAtMultiplier(rcp, 2));
+			miner2.BuildList.AddRange(miner.BuildList);
 		}
 
 		smelter.BuildList = new List<Recipe> {

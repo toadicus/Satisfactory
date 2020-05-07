@@ -19,7 +19,7 @@ public class Production
 					continue;
 
 				// TODO: Add support for recipes with multiple parts.
-				iterProd.Add(Recipe.Get(part.name).GetNProductionByIndex(-part.rate, 0));
+				iterProd.Add(Recipe.Get(part.name).GetProduction());
 			}
 
 			prod.Add(iterProd);
@@ -41,12 +41,56 @@ public class Production
 
 		return CalcMinProductionFor(prod);
 	}
+
+	public static Production CalcMinProductionFor(Part part) {
+		Production prod = new Production();
+
+		prod.AddDemand(part);
+
+		return CalcMinProductionFor(prod);
+	}
+
+	public static bool LeftHasDemandNotInRightGross(Production lhs, Production rhs) {
+		return FindMissingCosts(lhs, rhs).Count > 0;
+	}
+
+	public static List<Part> FindMissingCosts(Production lhs, Production rhs, Dictionary<string, bool> ignores = null) {
+		List<Part> missingCosts = new List<Part>();
+
+		foreach (Part dmnd in lhs.Demands.Values) {
+			bool found = false;
+			foreach (Part prod in rhs.Gross.Values) {
+				found = dmnd.name == prod.name;
+
+				if (found)
+					break;
+			}
+
+			if (!found && (ignores is null || !ignores.ContainsKey(dmnd.name))) {
+				missingCosts.Add(dmnd);
+			}
+		}
+
+		return missingCosts;
+	}
 	#endregion
 
 	public Dictionary<string, Part> Gross { get; private set; }
 	public Dictionary<string, Part> Demands { get; private set; }
 
 	public Dictionary<string, Part> Net { get; private set; }
+
+	public List<double> PowerInputs { get; private set; }
+	public List<double> PowerOutputs { get; private set; }
+
+	public double NetPower {
+		get {
+			double powerIn = PowerInputs?.Sum() ?? 0d;
+			double powerOut = PowerOutputs?.Sum() ?? 0d;
+
+			return powerIn - powerOut;
+		}
+	}
 
 	public void Add(Production rhs) {
 		foreach (Part part in rhs.Gross.Values) {
@@ -55,6 +99,21 @@ public class Production
 
 		foreach (Part part in rhs.Demands.Values) {
 			this.AddDemand(part);
+		}
+
+		this.PowerInputs.AddRange(rhs.PowerInputs);
+		this.PowerOutputs.AddRange(rhs.PowerOutputs);
+	}
+
+	public void AddBuildings(List<Building> bldgs) {
+		foreach (Building bldg in bldgs) {
+			this.Add(bldg.GetProduction());
+		}
+	}
+
+	public void AddBuildings(Building[] bldgs) {
+		foreach (Building bldg in bldgs) {
+			this.Add(bldg.GetProduction());
 		}
 	}
 
@@ -76,6 +135,12 @@ public class Production
 		}
 	}
 
+	public void AddProduction(IEnumerable<Part> parts) {
+		foreach (Part part in parts) {
+			this.AddProduction(part);
+		}
+	}
+
 	public void AddDemand(Part part) {
 		string name = part.name;
 		if (this.Demands.ContainsKey(name)) {
@@ -91,6 +156,21 @@ public class Production
 		else {
 			this.Net[name] = -part;
 		}
+	}
+
+	public void AddDemand(IEnumerable<Part> parts) {
+		foreach (Part part in parts) {
+			this.AddDemand(part);
+		}
+	}
+
+	public void Clear() {
+		this.Gross.Clear();
+		this.Demands.Clear();
+		this.Net.Clear();
+
+		this.PowerInputs.Clear();
+		this.PowerOutputs.Clear();
 	}
 
 	public bool HasNegativeNet() {
@@ -120,8 +200,31 @@ public class Production
 		}
 	}
 
+	public void PrintPower() {
+		print("***Power Production***: {0:G4} MW".Format(this.PowerInputs.Sum()));
+		print("***Power Consumption***: {0:G4} MW".Format(this.PowerOutputs.Sum()));
+		print("***Power Balance***: {0:G4} MW".Format(this.NetPower));
+	}
+
+	public void PrintAll(bool printZeroes = false) {
+		print("***Gross Production:***");
+		this.PrintGross();
+
+		print("\n***Demands:***");
+		this.PrintDemands();
+
+		print("\n***Net Production:***");
+		this.PrintNet(printZeroes);
+
+		print("\n");
+		this.PrintPower();
+	}
+
 	public Production(Dictionary<string, Part> prod, Dictionary<string, Part> dems)
 	{
+		this.PowerInputs = new List<double>();
+		this.PowerOutputs = new List<double>();
+
 		this.Gross = prod;
 		this.Demands = dems;
 
@@ -137,11 +240,7 @@ public class Production
 		}
 	}
 
-	public Production(Part[] prod, Part[] dems) {
-		this.Gross = new Dictionary<string, Part>();
-		this.Demands = new Dictionary<string, Part>();
-		this.Net = new Dictionary<string, Part>();
-
+	public Production(Part[] prod, Part[] dems) : this() {
 		foreach (Part part in prod) {
 			this.AddProduction(part);
 		}
@@ -155,6 +254,9 @@ public class Production
 		this.Gross = new Dictionary<string, Part>();
 		this.Demands = new Dictionary<string, Part>();
 		this.Net = new Dictionary<string, Part>();
+
+		this.PowerInputs = new List<double>();
+		this.PowerOutputs = new List<double>();
 	}
 
 	#region OPERATORS

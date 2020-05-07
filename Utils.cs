@@ -47,6 +47,7 @@ public static class Utils {
 	}
 
 	public static void print(object o) {
+
 		Console.WriteLine(o);
 	}
 
