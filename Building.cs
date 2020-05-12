@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using static Utils;
 
 public class Building {
@@ -21,8 +22,12 @@ public class Building {
 	public static void PrintLikeBuildings(IEnumerable<Building> bldgs) {
 		var likeBuildings = CountLikeBuildings(bldgs);
 
+		var sortedKeys = likeBuildings.Keys.ToList();
+		sortedKeys.Sort();
+
 		print("***Buildings Summary:***");
-		foreach ((var key, var val) in likeBuildings) {
+		foreach (var key in sortedKeys) {
+			var val = likeBuildings[key];
 			print("{0} {1}".Format(val, key));
 		}
 	}
