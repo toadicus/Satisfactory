@@ -1,17 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
-using u8 = System.Byte;
 using static FuzzyCompare;
 using static RecipeDefs;
-using static Utils;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Reflection;
+using u8 = System.Byte;
 
 public class BldgPlan {
-    #region STATIC
-    public static List<BldgPlan> List;
+	#region STATIC
+	public static List<BldgPlan> List;
 	public static Dictionary<string, List<BldgPlan>> IndexByRecipe;
 
 	static BldgPlan() {
@@ -68,8 +65,12 @@ public class BldgPlan {
 		return bldg;
 	}
 
-	public static Building MakeBuildingForNofFirst(Recipe rcp, double rate) {
-		return MakeBuildingForNofIndex(rcp, rate, 0);
+	public static Building MakeBuildingByRecipeForNofPart(Recipe rcp, Part part) {
+		Building bldg = GetPlanFor(rcp).Build(rcp);
+
+		bldg.SetOCRateForPartTarget(part);
+
+		return bldg;
 	}
 
 	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double demandRate, int index, double exGross, int exCount, out double newOCRate) {
@@ -107,6 +108,18 @@ public class BldgPlan {
 		return MakeBuildingsForNofIndex(rcp, rate, index, 0d, 0, out newOCRate);
 	}
 
+	public static Building[] MakeBuildingsForPartTarget(Recipe rcp, Part target, double exGross, int exCount, out double newOCRate) {
+		u8 idx = rcp.GetIndexOf(target);
+
+		return MakeBuildingsForNofIndex(rcp, target.rate, idx, exGross, exCount, out newOCRate);
+	}
+
+	public static Building[] MakeBuildingsForPartTarget(Recipe rcp, Part target) {
+		double _;
+
+		return MakeBuildingsForPartTarget(rcp, target, 0, 0, out _);
+	}
+
 
 	public static ValueTuple<List<Building>, Production> ProcessBuildings(List<Building> bldgs, bool ignoreCosts = false) {
 		u8 iters = 0;
@@ -119,6 +132,35 @@ public class BldgPlan {
 
 		Dictionary<string, bool> partsToIngore = new Dictionary<string, bool>();
 
+		prod.AddBuildings(bldgs);
+
+		var minPartList = Production.CalcMinProductionFor(prod);
+		Dictionary<Recipe, Part> priorityRcps = new Dictionary<Recipe, Part>();
+
+		foreach (Part priPart in minPartList.Gross.Values) {
+			// Look for parts that are produced as a secondary output for any primary recipes.
+			Recipe primary;
+
+			if (Recipe.FindRecipeFor(priPart.name, out primary)) {
+				// We found a primary recipe for this part -- time to subloop.
+				foreach (Part secPart in minPartList.Gross.Values) {
+					if (secPart.name == priPart.name || secPart.name == primary.name)
+						continue;
+
+					if (primary.Provides(secPart)) {
+						// If the recipe provides a secondary part, set it as a priority, but only up to the amount of primary part we need.
+						priorityRcps[primary] = priPart;
+					}
+				}
+			}
+		}
+
+		foreach ((Recipe rcp, Part part) in priorityRcps) {
+			// If we found any priority recipes, make buildings for them first.
+			bldgs.AddRange(MakeBuildingsForPartTarget(rcp, part));
+		}
+
+		prod.Clear();
 		prod.AddBuildings(bldgs);
 
 		while (AlmostLt(prod.NetPower, 0d) || prod.HasNegativeNet() || (!ignoreCosts && missingCosts != null && missingCosts.Count > 0)) {
@@ -211,9 +253,9 @@ public class BldgPlan {
 			}
 		}
 	}
-    #endregion
+	#endregion
 
-    public string Name { get; protected set; }
+	public string Name { get; protected set; }
 	public double BasePower { get; protected set; }
 	public double RateMultiplier { get; protected set; }
 

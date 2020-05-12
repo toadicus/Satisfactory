@@ -1,14 +1,13 @@
 ﻿using System;
 
-public static class FuzzyCompare
-{
+public static class FuzzyCompare {
 	public const double FUZZY_MARGIN = 1e-6d;
 
 	public static bool AlmostEq(double lhs, double rhs, double margin = FUZZY_MARGIN) {
 		return abs(lhs - rhs) < margin;
 	}
 
-	public static bool AlmostNe(double lhs, double rhs, double margin= FUZZY_MARGIN) {
+	public static bool AlmostNe(double lhs, double rhs, double margin = FUZZY_MARGIN) {
 		return !AlmostEq(lhs, rhs);
 	}
 

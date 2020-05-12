@@ -1,9 +1,7 @@
-﻿using System;
-using System.Linq;
-using static RecipeDefs;
+﻿using System.Collections.Generic;
 using static BuildingDefs;
+using static RecipeDefs;
 using static Utils;
-using System.Collections.Generic;
 
 namespace Satisfactory {
 	class Program {
@@ -11,7 +9,13 @@ namespace Satisfactory {
 			List<Building> bldgs = new List<Building> {
 				foundry.Build(aluminum_ingot),
 				foundry.Build(aluminum_ingot),
-				foundry.Build(aluminum_ingot),
+				//refinery.Build(alumina_sln, .81),
+				//refinery.Build(alumina_sln, .81),
+				//refinery.Build(alumina_sln, .81),
+				//refinery.Build(alumina_sln, .81),
+				//refinery.Build(alumina_sln, .81),
+				//refinery.Build(aluminum_scrap, .67),
+				//refinery.Build(aluminum_scrap, .67)
 			};
 
 			(var result, var prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts: true);

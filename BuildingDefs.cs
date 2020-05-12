@@ -39,7 +39,8 @@ public static class BuildingDefs {
 		smelter.BuildList = new List<Recipe> {
 			iron_ingot,
 			copper_ingot,
-			caterium_ingot
+			caterium_ingot,
+			pure_aluminum_ingot,
 		};
 
 		foundry.BuildList = new List<Recipe> {

@@ -1,15 +1,13 @@
 ﻿using System;
-using static Utils;
-using static FuzzyCompare;
 using System.Collections.Generic;
-using System.Linq;
+using static Utils;
 
 public class Building {
 	public static Dictionary<string, int> CountLikeBuildings(IEnumerable<Building> bldgs) {
 		Dictionary<string, int> result = new Dictionary<string, int>();
 
 		foreach (Building bldg in bldgs) {
-			string key = bldg.ToString();
+			string key = bldg.LongString();
 
 			if (!result.ContainsKey(key)) {
 				result[key] = 0;
@@ -83,6 +81,22 @@ public class Building {
 		this.OCRate = percent / 100d;
 	}
 
+	public virtual void SetOCRateForNofPart(double rate, Part part) {
+		double baseRate = Assignment.GetRateOfPart(part);
+
+		double percent = Math.Ceiling(rate * 100d / baseRate);
+
+		this.OCRate = percent / 100d;
+	}
+
+	public virtual void SetOCRateForPartTarget(Part part) {
+		double baseRate = Assignment.GetRateOfPart(part);
+
+		double percent = Math.Ceiling(part.rate * 100d / baseRate);
+
+		this.OCRate = percent / 100d;
+	}
+
 	public virtual void SetOCRateForNofFirst(double rate) {
 		this.SetOCRateForNofIndex(rate, 0);
 	}
@@ -102,7 +116,7 @@ public class Building {
 	public virtual string LongString() {
 		Production prod = this.GetProduction();
 
-		return "{0} ({1}) @ {2:P0} ({3} MW, demands: {4})".Format(this.Name, string.Join(", ", prod.Gross.Values), this.OCRate, this.Power, string.Join(", ", prod.Demands.Values));
+		return "{0} ({1}) @ {2:P0} ({3:G4} MW, demands: {4})".Format(this.Name, string.Join(", ", prod.Gross.Values), this.OCRate, this.Power, string.Join(", ", prod.Demands.Values));
 	}
 
 	public Building(string name, BldgPlan plan, Recipe assignment = null, double ocrate = 1d) {

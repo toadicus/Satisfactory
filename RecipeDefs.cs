@@ -76,5 +76,6 @@ public static class RecipeDefs {
 	public static Recipe alumina_sln = Recipe.New((p("Alumina Solution", 80), p(silica, 20)), (p(bauxite, 70), p(water, 100)), plural: "");
 	public static Recipe aluminum_scrap = Recipe.New((p("Aluminum Scrap", 360), p(water, 60)), (p(alumina_sln, 240), p(petroleum_coke, 60)), plural: "");
 	public static Recipe aluminum_ingot = Recipe.New("Aluminum Ingot", 80, (p(aluminum_scrap, 240), p(silica, 140)));
+	public static Recipe pure_aluminum_ingot = Recipe.New("Pure Aluminum Ingot", p(aluminum_ingot, 36), p(aluminum_scrap, 144));
 }
 #pragma warning restore 0618

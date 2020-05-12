@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using u8 = System.Byte;
 
-public class GenrPlan : BldgPlan
-{
+public class GenrPlan : BldgPlan {
 	public static List<GenrPlan> GenrList = new List<GenrPlan>();
 	public static Dictionary<string, GenrPlan> IndexByFuelType = new Dictionary<string, GenrPlan>();
 

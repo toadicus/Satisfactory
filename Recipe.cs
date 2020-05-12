@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using static Utils;
-using static FuzzyCompare;
-
 using u8 = System.Byte;
-using System.Linq;
 
 public class Recipe {
 	#region STATIC
@@ -35,6 +33,10 @@ public class Recipe {
 
 	public static Recipe New(string name, Part production, ValueTuple<Part, Part> demands, string plural = "s") {
 		return Recipe.New(name, new List<Part> { production }, new List<Part> { demands.Item1, demands.Item2 }, plural);
+	}
+
+	public static Recipe New(string name, Part production, Part demand, string plural = "s") {
+		return Recipe.New(name, new List<Part> { production }, new List<Part> { demand }, plural);
 	}
 
 	public static Recipe New(ValueTuple<Part, Part> production, Part demand, string plural = "s") {
@@ -139,6 +141,43 @@ public class Recipe {
 		}
 	}
 
+	public double GetRateOfPart(Part part) {
+		foreach (Part p in this.production) {
+			if (part.name == p.name) {
+				return p.rate;
+			}
+		}
+
+		throw new ArgumentOutOfRangeException("Recipe {0} does not provide part {1}".Format(this.name, part.name));
+	}
+
+	public bool TryGetIndexOf(string name, out u8 idx) {
+		u8 _idx;
+		for (_idx = 0; _idx < this.production.Count; _idx++) {
+			if (this.production[_idx].name == name) {
+				idx = _idx;
+				return true;
+			}
+		}
+
+		idx = u8.MaxValue;
+		return false;
+	}
+
+	public u8 GetIndexOf(string name) {
+		u8 res;
+		if (TryGetIndexOf(name, out res)) {
+			return res;
+		}
+		else {
+			throw new ArgumentOutOfRangeException("Recipe {0} does not provide part named {1}".Format(this.name, name));
+		}
+	}
+
+	public u8 GetIndexOf(Part part) {
+		return this.GetIndexOf(part.name);
+	}
+
 	public Production GetProduction() {
 		return this.GetProductionAtMultiplier(1);
 	}
@@ -160,6 +199,12 @@ public class Recipe {
 
 	public Production GetNProductionByIndex(double req, u8 idx) {
 		double rate = req / this.production[idx].rate;
+
+		return GetProductionAtMultiplier(rate);
+	}
+
+	public Production GetNProductionOfPart(double req, Part part) {
+		double rate = part.rate / GetRateOfPart(part);
 
 		return GetProductionAtMultiplier(rate);
 	}

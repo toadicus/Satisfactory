@@ -1,17 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using static Utils;
 using static FuzzyCompare;
-
+using static Utils;
 using u8 = System.Byte;
 
 
-public class Production
-{
+public class Production {
 	#region static
 	public static Production CalcMinProductionFor(Production prod) {
+		u8 iters = 0;
 		while (prod.HasNegativeNet()) {
+			if (++iters > 10)
+				throw new Exception("This is running away.");
+
 			Production iterProd = new Production();
 
 			foreach (Part part in prod.Net.Values) {
@@ -19,7 +21,10 @@ public class Production
 					continue;
 
 				// TODO: Add support for recipes with multiple parts.
-				iterProd.Add(Recipe.Get(part.name).GetProduction());
+				Recipe rcp;
+
+				if (Recipe.FindRecipeFor(part.name, out rcp))
+					iterProd.Add(rcp.GetNProductionByIndex(-part.rate, 0));
 			}
 
 			prod.Add(iterProd);
@@ -220,8 +225,7 @@ public class Production
 		this.PrintPower();
 	}
 
-	public Production(Dictionary<string, Part> prod, Dictionary<string, Part> dems)
-	{
+	public Production(Dictionary<string, Part> prod, Dictionary<string, Part> dems) {
 		this.PowerInputs = new List<double>();
 		this.PowerOutputs = new List<double>();
 
@@ -264,7 +268,7 @@ public class Production
 		return new Production(tuple.Item1, tuple.Item2);
 	}
 
-	public static implicit operator ValueTuple<Part[], Part[]> (Production ptuple) {
+	public static implicit operator ValueTuple<Part[], Part[]>(Production ptuple) {
 		return (ptuple.Gross.Values.ToArray(), ptuple.Demands.Values.ToArray());
 	}
 	#endregion
