@@ -20,10 +20,9 @@ public class Production {
 				if (AlmostGte(part.rate, 0d))
 					continue;
 
-				// TODO: Add support for recipes with multiple parts.
 				Recipe rcp;
 
-				if (Recipe.FindRecipeFor(part.name, out rcp))
+				if (Recipe.TryFindRecipeFor(part.name, out rcp))
 					iterProd.Add(rcp.GetNProductionByIndex(-part.rate, 0));
 			}
 

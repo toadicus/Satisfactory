@@ -92,7 +92,7 @@ public class Recipe {
 	}
 
 	// WIP: Needs more heuristics.
-	public static bool FindRecipeFor(string name, out Recipe rcp) {
+	public static bool TryFindRecipeFor(string name, out Recipe rcp) {
 		if (!BldgPlan.IndexByRecipe.ContainsKey(name)) {
 			Recipe bestRcp = null;
 			// There's no building that can directly produce this by name; let's look for other matches.
@@ -121,6 +121,15 @@ public class Recipe {
 		}
 
 		return rcp != null;
+	}
+
+	public static Recipe FindRecipeFor(string name) {
+		Recipe rcp;
+		if (TryFindRecipeFor(name, out rcp)) {
+			return rcp;
+		}
+
+		throw new ArgumentOutOfRangeException("No recipe producing {0} exists.".Format(name));
 	}
 
 	#endregion

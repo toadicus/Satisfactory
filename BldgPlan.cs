@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using static FuzzyCompare;
 using static RecipeDefs;
 
@@ -87,10 +88,14 @@ public class BldgPlan {
 			newOCRate = newGross / currMaxGross;
 			count = 0;
 		}
-		else {
+		else if (exCount > 0) {
 			demandRate = newGross - currMaxGross;
 			count = (int)Math.Ceiling(demandRate / rcpRate);
 			newOCRate = newGross / (rcpRate * (exCount + count));
+		}
+		else {
+			count = (int)Math.Ceiling(demandRate / rcpRate);
+			newOCRate = demandRate / (rcpRate * count);
 		}
 
 		Building[] bldgs = new Building[count];
@@ -142,7 +147,7 @@ public class BldgPlan {
 			// Look for parts that are produced as a secondary output for any primary recipes.
 			Recipe primary;
 
-			if (Recipe.FindRecipeFor(priPart.name, out primary)) {
+			if (Recipe.TryFindRecipeFor(priPart.name, out primary)) {
 				// We found a primary recipe for this part -- time to subloop.
 				foreach (Part secPart in minPartList.Gross.Values) {
 					if (secPart.name == priPart.name || secPart.name == primary.name)
@@ -158,11 +163,17 @@ public class BldgPlan {
 
 		foreach ((Recipe rcp, Part part) in priorityRcps) {
 			// If we found any priority recipes, make buildings for them first.
-			bldgs.AddRange(MakeBuildingsForPartTarget(rcp, part));
+			newBldgs.AddRange(MakeBuildingsForPartTarget(rcp, part));
 		}
 
-		prod.Clear();
-		prod.AddBuildings(bldgs);
+		prod.AddBuildings(newBldgs);
+		bldgs.AddRange(newBldgs);
+		newBldgs.Clear();
+
+		if (newBldgs.Count > 0) {
+			bldgs.ForEach(b => Utils.print(b));
+			prod.PrintNet();
+		}
 
 		while (AlmostLt(prod.NetPower, 0d) || prod.HasNegativeNet() || (!ignoreCosts && missingCosts != null && missingCosts.Count > 0)) {
 			if (++iters > 10)
@@ -177,7 +188,7 @@ public class BldgPlan {
 				if (missingCosts != null) {
 					foreach (Part cost in missingCosts) {
 						Recipe rcp;
-						bool recipeExists = Recipe.FindRecipeFor(cost.name, out rcp);
+						bool recipeExists = Recipe.TryFindRecipeFor(cost.name, out rcp);
 
 						if (recipeExists) {
 							newBldgs.Add(MakeBuildingFor(rcp));
@@ -198,24 +209,26 @@ public class BldgPlan {
 				if (AlmostGte(part.rate, 0))
 					continue;
 
-				Recipe rcp;
-				// TODO: Something with this.
-				bool _ = Recipe.FindRecipeFor(part.name, out rcp);
+				Recipe rcp = Recipe.FindRecipeFor(part.name);
 
 				double currOCRate = 1d;
 				var partBldgs = bldgs.Where(b => !(b.Assignment is null)).Where(b => b.Assignment.name == part.name);
 				int exCount = partBldgs.Count();
 
-				if (prod.Gross.ContainsKey(part.name) && exCount > 0) {
-
-					currOCRate = partBldgs.First().OCRate;
+				if (prod.Gross.ContainsKey(part.name)) {
 					double newOCRate;
 
-					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, prod.Gross[part.name].rate, exCount, out newOCRate));
+					// TODO: Make this target the part probably.
+					// HACK: We are going back through the whole list of buildings to find the gross rate we're actually targeting.  Production probably needs a redesign.
+					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, Building.GetGrossRateOfPartByRecipe(bldgs, rcp.name, part.name), exCount, out newOCRate));
 
-					if (newOCRate != currOCRate) {
-						foreach (Building partBldg in partBldgs) {
-							partBldg.OCRate = newOCRate;
+					if (exCount > 0) {
+						currOCRate = partBldgs.First().OCRate;
+
+						if (newOCRate != currOCRate) {
+							foreach (Building partBldg in partBldgs) {
+								partBldg.OCRate = newOCRate;
+							}
 						}
 					}
 				}

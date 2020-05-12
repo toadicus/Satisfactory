@@ -54,6 +54,28 @@ public class Building {
 		}
 	}
 
+	public static Production GetProdOfRecipe(IEnumerable<Building> bldgs, string rcpName) {
+		Production prod = new Production();
+		foreach (Building bldg in bldgs) {
+			if (bldg.Assignment != null && bldg.Assignment.name == rcpName) {
+				prod.Add(bldg.GetProduction());
+			}
+		}
+
+		return prod;
+	}
+
+	public static double GetGrossRateOfPartByRecipe(IEnumerable<Building> bldgs, string rcpName, string partName) {
+		Production prod = GetProdOfRecipe(bldgs, rcpName);
+
+		if (prod.Gross.ContainsKey(partName)) {
+			return prod.Gross[partName].rate;
+		}
+		else {
+			return 0d;
+		}
+	}
+
 	public string Name { get; protected set; }
 	public double Power { get; protected set; }
 	public Recipe Assignment { get; set; }
