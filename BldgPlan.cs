@@ -126,7 +126,7 @@ public class BldgPlan {
 		u8 iters = 0;
 
 		Production prod = new Production();
-		Production costs = new Production();
+		Production costs;
 
 		List<Building> newBldgs = new List<Building>();
 		List<Part> missingCosts = null;
@@ -170,23 +170,28 @@ public class BldgPlan {
 
 			newBldgs.Clear();
 
-			if (!ignoreCosts && missingCosts != null) {
-				foreach (Part cost in missingCosts) {
-					Recipe rcp;
-					bool recipeExists = Recipe.FindRecipeFor(cost.name, out rcp);
+			if (!ignoreCosts) {
+				costs = Building.SummarizeCosts(bldgs);
+				missingCosts = Production.FindMissingCosts(costs, prod, partsToIngore);
 
-					if (recipeExists) {
-						newBldgs.Add(MakeBuildingFor(rcp));
+				if (missingCosts != null) {
+					foreach (Part cost in missingCosts) {
+						Recipe rcp;
+						bool recipeExists = Recipe.FindRecipeFor(cost.name, out rcp);
+
+						if (recipeExists) {
+							newBldgs.Add(MakeBuildingFor(rcp));
+						}
+						else {
+							partsToIngore[cost.name] = true;
+						}
 					}
-					else {
-						partsToIngore[cost.name] = true;
-					}
+
+					bldgs.AddRange(newBldgs);
+					prod.AddBuildings(newBldgs);
+
+					newBldgs.Clear();
 				}
-
-				bldgs.AddRange(newBldgs);
-				prod.AddBuildings(newBldgs);
-
-				newBldgs.Clear();
 			}
 
 			foreach (Part part in prod.Net.Values) {
@@ -234,11 +239,6 @@ public class BldgPlan {
 
 			bldgs.AddRange(newBldgs);
 			prod.AddBuildings(newBldgs);
-
-			if (!ignoreCosts) {
-				costs = Building.SummarizeCosts(bldgs);
-				missingCosts = Production.FindMissingCosts(costs, prod, partsToIngore);
-			}
 		}
 
 		return (bldgs, prod);
