@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using static FuzzyCompare;
 using static RecipeDefs;
+
 using u8 = System.Byte;
 
 public class BldgPlan {
@@ -183,8 +184,8 @@ public class BldgPlan {
 				}
 
 				bldgs.AddRange(newBldgs);
-				prod.Clear();
-				prod.AddBuildings(bldgs);
+				prod.AddBuildings(newBldgs);
+
 				newBldgs.Clear();
 			}
 
@@ -218,20 +219,26 @@ public class BldgPlan {
 				}
 			}
 
+			// HACK: We need a better way to recalculate production when OC rates change.
 			bldgs.AddRange(newBldgs);
 			prod.Clear();
 			prod.AddBuildings(bldgs);
+			newBldgs.Clear();
 
 			if (AlmostLt(prod.NetPower, 0)) {
 				Generator[] newGens = GenrPlan.MakeGenrsForPower(-prod.NetPower, fuel.name);
-				bldgs.AddRange(newGens);
+				newBldgs.AddRange(newGens);
 			}
 
-			prod.Clear();
-			prod.AddBuildings(bldgs);
+			double oldPower = prod.NetPower;
 
-			costs = Building.SummarizeCosts(bldgs);
-			missingCosts = Production.FindMissingCosts(costs, prod, partsToIngore);
+			bldgs.AddRange(newBldgs);
+			prod.AddBuildings(newBldgs);
+
+			if (!ignoreCosts) {
+				costs = Building.SummarizeCosts(bldgs);
+				missingCosts = Production.FindMissingCosts(costs, prod, partsToIngore);
+			}
 		}
 
 		return (bldgs, prod);
