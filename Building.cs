@@ -11,8 +11,9 @@ public class Building {
 		powerShardCount = 0;
 
 		foreach (Building bldg in bldgs) {
-			if (bldg.OCRate > 1)
-				powerShardCount++;
+			if (bldg.OCRate > 1) {
+				powerShardCount += (u8)Math.Ceiling((bldg.OCRate - 1) / 0.5);
+			}
 
 			string key = bldg.LongString();
 
