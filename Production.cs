@@ -220,7 +220,7 @@ public class Production {
 		print("\n***Net Production:***");
 		this.PrintNet(printZeroes);
 
-		print("\n");
+		print();
 		this.PrintPower();
 	}
 

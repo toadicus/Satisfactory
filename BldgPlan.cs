@@ -92,7 +92,7 @@ public class BldgPlan {
 			count = 0;
 		}
 		else if (exCount > 0) {
-			demandRate = newGross - currMaxGross;
+			demandRate = newGross - currMaxGross * maxOCRate;
 			count = (int)FuzzyCeiling(demandRate / (rcpRate * maxOCRate), rcpMarginFactor);
 			newOCRate = newGross / (rcpRate * (exCount + count));
 		}
@@ -135,6 +135,7 @@ public class BldgPlan {
 
 
 	public static ValueTuple<List<Building>, Production> ProcessBuildings(List<Building> bldgs, bool ignoreCosts = false, bool ignorePower = false, double maxOCRate = 1.0d, double rcpMarginFactor = 0d) {
+		rcpMarginFactor += FUZZY_MARGIN;
 		u8 iters = 0;
 
 		Production prod = new Production();
@@ -175,11 +176,6 @@ public class BldgPlan {
 		prod.AddBuildings(newBldgs);
 		bldgs.AddRange(newBldgs);
 		newBldgs.Clear();
-
-		if (newBldgs.Count > 0) {
-			bldgs.ForEach(b => Utils.print(b));
-			prod.PrintNet();
-		}
 
 		double margin = FUZZY_MARGIN;
 
@@ -260,6 +256,7 @@ public class BldgPlan {
 
 			if (!ignorePower && AlmostLt(prod.NetPower, 0)) {
 				Generator[] newGens = GenrPlan.MakeGenrsForPower(-prod.NetPower, fuel.name);
+
 				newBldgs.AddRange(newGens);
 
 				bldgs.AddRange(newBldgs);
