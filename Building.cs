@@ -3,11 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using static Utils;
 
+using u8 = System.Byte;
+
 public class Building {
-	public static Dictionary<string, int> CountLikeBuildings(IEnumerable<Building> bldgs) {
+	public static Dictionary<string, int> CountLikeBuildings(IEnumerable<Building> bldgs, out u8 powerShardCount) {
 		Dictionary<string, int> result = new Dictionary<string, int>();
+		powerShardCount = 0;
 
 		foreach (Building bldg in bldgs) {
+			if (bldg.OCRate > 1)
+				powerShardCount++;
+
 			string key = bldg.LongString();
 
 			if (!result.ContainsKey(key)) {
@@ -19,8 +25,15 @@ public class Building {
 		return result;
 	}
 
-	public static void PrintLikeBuildings(IEnumerable<Building> bldgs) {
-		var likeBuildings = CountLikeBuildings(bldgs);
+	public static Dictionary<string, int> CountLikeBuildings(IEnumerable<Building> bldgs) {
+		u8 _;
+		return CountLikeBuildings(bldgs, out _);
+	}
+
+	public static void PrintLikeBuildings(IEnumerable<Building> bldgs, bool printShardCount = true) {
+		u8 powerShardCount;
+
+		var likeBuildings = CountLikeBuildings(bldgs, out powerShardCount);
 
 		var sortedKeys = likeBuildings.Keys.ToList();
 		sortedKeys.Sort();
@@ -30,6 +43,11 @@ public class Building {
 			var val = likeBuildings[key];
 			print("{0} {1}".Format(val, key));
 		}
+		print("{0} Total Buildings{1}".Format(
+			likeBuildings.Values.Sum(),
+			printShardCount ? " (Needs {0} Power Shards)".Format(powerShardCount) : ""
+			)
+		);
 	}
 
 	public static Production SummarizeCosts(IEnumerable<Building> bldgs) {
