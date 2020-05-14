@@ -27,6 +27,15 @@ public static class FuzzyCompare {
 		return AlmostGte(lhs, rhs, margin) && !AlmostEq(lhs, rhs, margin);
 	}
 
+	public static double FuzzyCeiling(double num, double margin = FUZZY_MARGIN) {
+		double inum = (int)num;
+
+		if (AlmostGt(num, inum)) {
+			return inum + 1d;
+		}
+		return inum;
+	}
+
 	public static double abs(double n) {
 		return Math.Abs(n);
 	}

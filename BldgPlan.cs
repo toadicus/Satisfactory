@@ -76,8 +76,10 @@ public class BldgPlan {
 		return bldg;
 	}
 
-	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double demandRate, int index, double exGross, int exCount, out double newOCRate, double maxOCRate = 1.0, double margin = FUZZY_MARGIN) {
+	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double demandRate, int index, double exGross, int exCount, out double newOCRate, double maxOCRate = 1.0, double rcpMarginFactor = 0) {
 		BldgPlan plan = GetPlanFor(rcp);
+
+		double rcpMargin = rcp.production[index].rate * rcpMarginFactor + FUZZY_MARGIN;
 
 		double newGross = demandRate + exGross;
 		double rcpRate = rcp.production[index].rate * plan.RateMultiplier;
@@ -85,18 +87,22 @@ public class BldgPlan {
 
 		int count;
 
-		if (AlmostLte(newGross, currMaxGross * maxOCRate, margin)) {
+		if (AlmostLte(newGross, currMaxGross * maxOCRate, rcpMargin)) {
 			newOCRate = newGross / currMaxGross;
 			count = 0;
 		}
 		else if (exCount > 0) {
 			demandRate = newGross - currMaxGross;
-			count = (int)Math.Ceiling(demandRate / (rcpRate * maxOCRate));
+			count = (int)FuzzyCeiling(demandRate / (rcpRate * maxOCRate), rcpMarginFactor);
 			newOCRate = newGross / (rcpRate * (exCount + count));
 		}
 		else {
-			count = (int)Math.Ceiling(demandRate / (rcpRate * maxOCRate));
+			count = (int)FuzzyCeiling(demandRate / (rcpRate * maxOCRate), rcpMarginFactor);
 			newOCRate = demandRate / (rcpRate * count);
+		}
+
+		if (AlmostEq(newOCRate, 1d, rcpMarginFactor)) {
+			newOCRate = 1d;
 		}
 
 		Building[] bldgs = new Building[count];
@@ -111,14 +117,14 @@ public class BldgPlan {
 	}
 
 
-	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double rate, int index, out double newOCRate, double maxOCRate = 1.0d, double margin = FUZZY_MARGIN) {
-		return MakeBuildingsForNofIndex(rcp, rate, index, 0d, 0, out newOCRate, maxOCRate: maxOCRate, margin: margin);
+	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double rate, int index, out double newOCRate, double maxOCRate = 1.0d, double rcpMarginFactor = FUZZY_MARGIN) {
+		return MakeBuildingsForNofIndex(rcp, rate, index, 0d, 0, out newOCRate, maxOCRate: maxOCRate, rcpMarginFactor: rcpMarginFactor);
 	}
 
-	public static Building[] MakeBuildingsForPartTarget(Recipe rcp, Part target, double exGross, int exCount, out double newOCRate, double maxOCRate = 1.0d, double margin = FUZZY_MARGIN) {
+	public static Building[] MakeBuildingsForPartTarget(Recipe rcp, Part target, double exGross, int exCount, out double newOCRate, double maxOCRate = 1.0d, double rcpMarginFactor = FUZZY_MARGIN) {
 		u8 idx = rcp.GetIndexOf(target);
 
-		return MakeBuildingsForNofIndex(rcp, target.rate, idx, exGross, exCount, out newOCRate, maxOCRate: maxOCRate, margin: margin);
+		return MakeBuildingsForNofIndex(rcp, target.rate, idx, exGross, exCount, out newOCRate, maxOCRate: maxOCRate, rcpMarginFactor: rcpMarginFactor);
 	}
 
 	public static Building[] MakeBuildingsForPartTarget(Recipe rcp, Part target, double maxOCRate = 1.0d) {
@@ -229,7 +235,7 @@ public class BldgPlan {
 
 					// TODO: Make this target the part probably.
 					// HACK: We are going back through the whole list of buildings to find the gross rate we're actually targeting.  Production probably needs a redesign.
-					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, Building.GetGrossRateOfPartByRecipe(bldgs, rcp.name, part.name), exCount, out newOCRate, maxOCRate: maxOCRate, margin: rcpMargin));
+					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, Building.GetGrossRateOfPartByRecipe(bldgs, rcp.name, part.name), exCount, out newOCRate, maxOCRate: maxOCRate, rcpMarginFactor: rcpMarginFactor));
 
 					if (exCount > 0) {
 						currOCRate = partBldgs.First().OCRate;
@@ -242,7 +248,7 @@ public class BldgPlan {
 					}
 				}
 				else {
-					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, out currOCRate));
+					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, out currOCRate, rcpMarginFactor: rcpMargin));
 				}
 			}
 
