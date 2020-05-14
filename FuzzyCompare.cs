@@ -30,7 +30,7 @@ public static class FuzzyCompare {
 	public static double FuzzyCeiling(double num, double margin = FUZZY_MARGIN) {
 		double inum = (int)num;
 
-		if (AlmostGt(num, inum)) {
+		if (AlmostGt(num, inum, margin)) {
 			return inum + 1d;
 		}
 		return inum;
