@@ -8,9 +8,9 @@ using u8 = System.Byte;
 
 public class Production {
 	#region static
-	public static Production CalcMinProductionFor(Production prod) {
+	public static Production CalcMinProductionFor(Production prod, double margin = FUZZY_MARGIN) {
 		u8 iters = 0;
-		while (prod.HasNegativeNet()) {
+		while (prod.HasNegativeNet(margin)) {
 			if (++iters > 10)
 				throw new Exception("This is running away.");
 
@@ -177,9 +177,9 @@ public class Production {
 		this.PowerOutputs.Clear();
 	}
 
-	public bool HasNegativeNet() {
+	public bool HasNegativeNet(double margin = FUZZY_MARGIN) {
 		foreach (Part part in this.Net.Values) {
-			if (AlmostLt(part.rate, 0))
+			if (AlmostLt(part.rate, 0, margin))
 				return true;
 		}
 		return false;

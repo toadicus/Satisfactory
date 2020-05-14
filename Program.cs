@@ -21,7 +21,7 @@ namespace Satisfactory {
 				//refinery.Build(aluminum_scrap, .67)
 			};
 
-			(var result, var prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts: true, maxOCRate: 1.1);
+			(var result, var prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts: true, maxOCRate: 1.1, rcpMarginFactor: .02);
 
 			Building.PrintLikeBuildings(bldgs);
 			print();
