@@ -75,7 +75,7 @@ public class BldgPlan {
 		return bldg;
 	}
 
-	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double demandRate, int index, double exGross, int exCount, out double newOCRate) {
+	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double demandRate, int index, double exGross, int exCount, out double newOCRate, double maxOCRate = 1.0) {
 		BldgPlan plan = GetPlanFor(rcp);
 
 		double newGross = demandRate + exGross;
@@ -84,17 +84,17 @@ public class BldgPlan {
 
 		int count;
 
-		if (AlmostLte(newGross, currMaxGross)) {
+		if (AlmostLte(newGross, currMaxGross * maxOCRate)) {
 			newOCRate = newGross / currMaxGross;
 			count = 0;
 		}
 		else if (exCount > 0) {
 			demandRate = newGross - currMaxGross;
-			count = (int)Math.Ceiling(demandRate / rcpRate);
+			count = (int)Math.Ceiling(demandRate / (rcpRate * maxOCRate));
 			newOCRate = newGross / (rcpRate * (exCount + count));
 		}
 		else {
-			count = (int)Math.Ceiling(demandRate / rcpRate);
+			count = (int)Math.Ceiling(demandRate / (rcpRate * maxOCRate));
 			newOCRate = demandRate / (rcpRate * count);
 		}
 
@@ -110,24 +110,24 @@ public class BldgPlan {
 	}
 
 
-	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double rate, int index, out double newOCRate) {
-		return MakeBuildingsForNofIndex(rcp, rate, index, 0d, 0, out newOCRate);
+	public static Building[] MakeBuildingsForNofIndex(Recipe rcp, double rate, int index, out double newOCRate, double maxOCRate = 1.0d) {
+		return MakeBuildingsForNofIndex(rcp, rate, index, 0d, 0, out newOCRate, maxOCRate: maxOCRate);
 	}
 
-	public static Building[] MakeBuildingsForPartTarget(Recipe rcp, Part target, double exGross, int exCount, out double newOCRate) {
+	public static Building[] MakeBuildingsForPartTarget(Recipe rcp, Part target, double exGross, int exCount, out double newOCRate, double maxOCRate = 1.0d) {
 		u8 idx = rcp.GetIndexOf(target);
 
-		return MakeBuildingsForNofIndex(rcp, target.rate, idx, exGross, exCount, out newOCRate);
+		return MakeBuildingsForNofIndex(rcp, target.rate, idx, exGross, exCount, out newOCRate, maxOCRate: maxOCRate);
 	}
 
-	public static Building[] MakeBuildingsForPartTarget(Recipe rcp, Part target) {
+	public static Building[] MakeBuildingsForPartTarget(Recipe rcp, Part target, double maxOCRate = 1.0d) {
 		double _;
 
-		return MakeBuildingsForPartTarget(rcp, target, 0, 0, out _);
+		return MakeBuildingsForPartTarget(rcp, target, 0, 0, out _, maxOCRate: maxOCRate);
 	}
 
 
-	public static ValueTuple<List<Building>, Production> ProcessBuildings(List<Building> bldgs, bool ignoreCosts = false) {
+	public static ValueTuple<List<Building>, Production> ProcessBuildings(List<Building> bldgs, bool ignoreCosts = false, bool ignorePower = false, double maxOCRate = 1.0d) {
 		u8 iters = 0;
 
 		Production prod = new Production();
@@ -147,7 +147,7 @@ public class BldgPlan {
 			// Look for parts that are produced as a secondary output for any primary recipes.
 			Recipe primary;
 
-			if (Recipe.TryFindRecipeFor(priPart.name, out primary)) {
+			if (AlmostGte(priPart.rate, 0) && Recipe.TryFindRecipeFor(priPart.name, out primary)) {
 				// We found a primary recipe for this part -- time to subloop.
 				foreach (Part secPart in minPartList.Gross.Values) {
 					if (secPart.name == priPart.name || secPart.name == primary.name)
@@ -163,7 +163,7 @@ public class BldgPlan {
 
 		foreach ((Recipe rcp, Part part) in priorityRcps) {
 			// If we found any priority recipes, make buildings for them first.
-			newBldgs.AddRange(MakeBuildingsForPartTarget(rcp, part));
+			newBldgs.AddRange(MakeBuildingsForPartTarget(rcp, part, maxOCRate: maxOCRate));
 		}
 
 		prod.AddBuildings(newBldgs);
@@ -175,7 +175,7 @@ public class BldgPlan {
 			prod.PrintNet();
 		}
 
-		while (AlmostLt(prod.NetPower, 0d) || prod.HasNegativeNet() || (!ignoreCosts && missingCosts != null && missingCosts.Count > 0)) {
+		while ((!ignorePower && AlmostLt(prod.NetPower, 0d)) || prod.HasNegativeNet() || (!ignoreCosts && missingCosts != null && missingCosts.Count > 0)) {
 			if (++iters > 10)
 				throw new Exception("This is running away.");
 
@@ -220,7 +220,7 @@ public class BldgPlan {
 
 					// TODO: Make this target the part probably.
 					// HACK: We are going back through the whole list of buildings to find the gross rate we're actually targeting.  Production probably needs a redesign.
-					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, Building.GetGrossRateOfPartByRecipe(bldgs, rcp.name, part.name), exCount, out newOCRate));
+					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, Building.GetGrossRateOfPartByRecipe(bldgs, rcp.name, part.name), exCount, out newOCRate, maxOCRate: maxOCRate));
 
 					if (exCount > 0) {
 						currOCRate = partBldgs.First().OCRate;
@@ -243,15 +243,13 @@ public class BldgPlan {
 			prod.AddBuildings(bldgs);
 			newBldgs.Clear();
 
-			if (AlmostLt(prod.NetPower, 0)) {
+			if (!ignorePower && AlmostLt(prod.NetPower, 0)) {
 				Generator[] newGens = GenrPlan.MakeGenrsForPower(-prod.NetPower, fuel.name);
 				newBldgs.AddRange(newGens);
+
+				bldgs.AddRange(newBldgs);
+				prod.AddBuildings(newBldgs);
 			}
-
-			double oldPower = prod.NetPower;
-
-			bldgs.AddRange(newBldgs);
-			prod.AddBuildings(newBldgs);
 		}
 
 		return (bldgs, prod);

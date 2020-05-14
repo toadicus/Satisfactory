@@ -9,7 +9,10 @@ namespace Satisfactory {
 			List<Building> bldgs = new List<Building> {
 				foundry.Build(aluminum_ingot),
 				foundry.Build(aluminum_ingot),
-				//refinery.Build(alumina_sln, .81),
+				//refinery.Build(alumina_sln, 1.02),
+				//refinery.Build(alumina_sln, 1.02),
+				//refinery.Build(alumina_sln, 1.02),
+				//refinery.Build(alumina_sln, 1.02),
 				//refinery.Build(alumina_sln, .81),
 				//refinery.Build(alumina_sln, .81),
 				//refinery.Build(alumina_sln, .81),
@@ -18,7 +21,7 @@ namespace Satisfactory {
 				//refinery.Build(aluminum_scrap, .67)
 			};
 
-			(var result, var prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts: true);
+			(var result, var prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts: true, maxOCRate: 1.1);
 
 			Building.PrintLikeBuildings(bldgs);
 			print();
