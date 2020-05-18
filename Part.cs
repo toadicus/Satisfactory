@@ -1,6 +1,27 @@
 ﻿using System;
+using u8 = System.Byte;
 
 public struct Part {
+	#region STATIC
+	public static bool TryGetGeneration(Part part, out u8 gen) {
+		Recipe rcp;
+		if (Recipe.TryFindRecipeFor(part.name, out rcp)) {
+			gen = rcp.gen;
+			return true;
+		}
+
+		gen = u8.MaxValue;
+		return false;
+	}
+
+	public static u8 GetGeneration(Part part) {
+		u8 gen;
+		if (TryGetGeneration(part, out gen)) {
+			return gen;
+		}
+		throw new Exception("No recipe exists for part named {0}".Format(part.name));
+	}
+	#endregion
 	public string name { get; private set; }
 	public string plural { get; private set; }
 	public double rate { get; private set; }

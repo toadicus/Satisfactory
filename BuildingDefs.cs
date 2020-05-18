@@ -27,7 +27,9 @@ public static class BuildingDefs {
 			limestone,
 			coal,
 			bauxite,
-			raw_quartz
+			raw_quartz,
+			sulfur,
+			uranium
 		};
 
 		miner2.BuildList = new List<Recipe>();
@@ -82,10 +84,14 @@ public static class BuildingDefs {
 			motor,
 		//	fabric,
 			circuit_board,
-		//	ai_limiter,
+			ai_limiter,
 			steel_pipe,
 			automated_wiring,
 			smart_plating,
+			alclad_alum_sheet,
+			heat_sink,
+			encased_uranium_cell,
+			electro_control_rod
 		};
 
 		manufacturer.BuildList = new List<Recipe> {
@@ -94,9 +100,12 @@ public static class BuildingDefs {
 		//	supercomputer,
 		//	high_speed_connector,
 		//	filter,
-		//	crystal_oscillator
+			crystal_oscillator,
 		//	nobelisk,
 		//	beacon,
+			radio_control_unit,
+			turbo_motor,
+			nuclear_fuel_rod
 		};
 
 		oil_extractor.BuildList = new List<Recipe> {
@@ -111,7 +120,9 @@ public static class BuildingDefs {
 			residual_rubber,
 			alumina_sln,
 			aluminum_scrap,
-			petroleum_coke
+			petroleum_coke,
+			sulfuric_acid,
+			uranium_pellet
 		};
 
 		water_extractor.BuildList = new List<Recipe> {

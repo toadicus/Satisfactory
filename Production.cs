@@ -11,7 +11,7 @@ public class Production {
 	public static Production CalcMinProductionFor(Production prod, double margin = FUZZY_MARGIN) {
 		u8 iters = 0;
 		while (prod.HasNegativeNet(margin)) {
-			if (++iters > 10)
+			if (++iters > 100)
 				throw new Exception("This is running away.");
 
 			Production iterProd = new Production();
@@ -186,19 +186,28 @@ public class Production {
 	}
 
 	public void PrintGross() {
-		foreach (Part part in this.Gross.Values) {
+		var sortedGross = this.Gross.Values.ToList();
+		sortedGross.Sort((lhs, rhs) => Part.GetGeneration(lhs).CompareTo(Part.GetGeneration(rhs)));
+
+		foreach (Part part in sortedGross) {
 			print(part);
 		}
 	}
 
 	public void PrintDemands() {
-		foreach (Part part in this.Demands.Values) {
+		var sortedDemands = this.Demands.Values.ToList();
+		sortedDemands.Sort((lhs, rhs) => Part.GetGeneration(lhs).CompareTo(Part.GetGeneration(rhs)));
+
+		foreach (Part part in sortedDemands) {
 			print(part);
 		}
 	}
 
 	public void PrintNet(bool printZeroes = false) {
-		foreach (Part part in this.Net.Values) {
+		var sortedNet = this.Net.Values.ToList();
+		sortedNet.Sort((lhs, rhs) => Part.GetGeneration(lhs).CompareTo(Part.GetGeneration(rhs)));
+
+		foreach (Part part in sortedNet) {
 			if (printZeroes || AlmostNe(part.rate, 0d))
 				print(part);
 		}

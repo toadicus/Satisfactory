@@ -93,31 +93,27 @@ public class Recipe {
 
 	// WIP: Needs more heuristics.
 	public static bool TryFindRecipeFor(string name, out Recipe rcp) {
-		if (!BldgPlan.IndexByRecipe.ContainsKey(name)) {
+		if (Recipe.IndexByName.ContainsKey(name)) {
+			rcp = Recipe.IndexByName[name];
+		}
+		else {
+			// There's no Recipe by this name; let's look for other matches that can be built.
 			Recipe bestRcp = null;
-			// There's no building that can directly produce this by name; let's look for other matches.
-			List<Recipe> rpcs = Recipe.IndexByPart[name];
-
-			var partRcps = rpcs.Where(r => BldgPlan.IndexByRecipe.ContainsKey(r.name));
 
 			double rate = 0d;
 
-			foreach (Recipe rRcp in partRcps) {
-				double rRate = rRcp.GetProductionOf(name).rate;
-				if (rRate > rate) {
-					rate = rRate;
-					bestRcp = rRcp;
+			// HACK: This just finds the way to make the most of a thing in a single recipe.
+			foreach (Recipe rRcp in Recipe.IndexByPart[name]) {
+				if (BldgPlan.IndexByRecipe.ContainsKey(rRcp.name)) {
+					double rRate = rRcp.GetProductionOf(name).rate;
+					if (rRate > rate) {
+						rate = rRate;
+						bestRcp = rRcp;
+					}
 				}
 			}
 
 			rcp = bestRcp;
-		}
-		else if (Recipe.IndexByPart.ContainsKey(name)) {
-			rcp = Recipe.IndexByPart[name][0];
-		}
-		else {
-			// There's no recipe for a part with this name.
-			rcp = null;
 		}
 
 		return rcp != null;
@@ -245,7 +241,13 @@ public class Recipe {
 
 		u8 sub = 0;
 		foreach (Part part in this.demands) {
-			sub = max(sub, Recipe.Get(part.name).gen);
+			Recipe rcp;
+			if (TryFindRecipeFor(part.name, out rcp)) {
+				sub = max(sub, rcp.gen);
+			}
+			else {
+				sub = 0;
+			}
 		}
 
 		g += sub;
@@ -272,8 +274,9 @@ public class Recipe {
 				IndexByPart[part.name] = new List<Recipe>();
 			}
 			IndexByPart[part.name].Add(this);
-			IndexByName[part.name] = this;
 		}
+
+		IndexByName[name] = this;
 
 		this.gen = this.CalculateGeneration();
 

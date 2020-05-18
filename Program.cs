@@ -10,7 +10,7 @@ namespace Satisfactory {
 			List<Building> bldgs = new List<Building>(b);
 
 			Production prod;
-			(bldgs, prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts: true, maxOCRate: maxOCRate, rcpMarginFactor: .02);
+			(bldgs, prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts: true, ignorePower: true, maxOCRate: maxOCRate, rcpMarginFactor: .02);
 
 			Building.PrintLikeBuildings(bldgs);
 			print();
@@ -23,16 +23,18 @@ namespace Satisfactory {
 
 		static void Main(string[] args) {
 			var b = new Building[] {
-				foundry.Build(aluminum_ingot),
-				foundry.Build(aluminum_ingot),
+				foundry.Build(turbo_motor),
+				manufacturer.Build(nuclear_fuel_rod),
+				assembler.Build(encased_beam),
+				constructor.Build(iron_plate),
+				constructor.Build(iron_rod),
+				constructor.Build(steel_pipe),
+				constructor.Build(copper_sheet),
+				constructor.Build(cable),
+				constructor.Build(wire)
 			};
 
-			Test(b);
 			Test(b, 1.05);
-			Test(b, 1.1);
-			Test(b, 1.5);
-			Test(b, 2);
-			Test(b, 2.5);
 		}
 	}
 }

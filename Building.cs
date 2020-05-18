@@ -114,6 +114,9 @@ public class Building {
 		set {
 			if (value < 0)
 				throw new ArgumentOutOfRangeException("Building.OCRate must be non-negative.");
+			if (value > 2.5)
+				throw new ArgumentOutOfRangeException("Building.OCRate cannot be higher than 2.5.");
+
 			this.ocrate = Math.Ceiling(value * 100) / 100;
 			this.Power = Plan.BasePower * Math.Pow(value, 1.6);
 		}

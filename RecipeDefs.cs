@@ -72,10 +72,30 @@ public static class RecipeDefs {
 
 	public static Recipe quartz_crystal = Recipe.New("Quartz Crystal", 22.5, p(raw_quartz, 37.5));
 	public static Recipe silica = Recipe.New("Silica", 37.5, p(raw_quartz, 22.5), plural: "");
+	public static Recipe crystal_oscillator = Recipe.New("Crystal Oscillator", 2, (p(quartz_crystal, 36/2), p(cable, 28/2), p(reinf_plate, 5/2)));
+	public static Recipe ai_limiter = Recipe.New("A.I. Limiter", 5, (p(copper_sheet, 25), p(quickwire, 100)));
 
 	public static Recipe alumina_sln = Recipe.New((p("Alumina Solution", 80), p(silica, 20)), (p(bauxite, 70), p(water, 100)), plural: "");
 	public static Recipe aluminum_scrap = Recipe.New((p("Aluminum Scrap", 360), p(water, 60)), (p(alumina_sln, 240), p(petroleum_coke, 60)), plural: "");
 	public static Recipe aluminum_ingot = Recipe.New("Aluminum Ingot", 80, (p(aluminum_scrap, 240), p(silica, 140)));
 	public static Recipe pure_aluminum_ingot = Recipe.New("Pure Aluminum Ingot", p(aluminum_ingot, 36), p(aluminum_scrap, 144));
+
+	public static Recipe alclad_alum_sheet = Recipe.New("Alclad Aluminum Sheet", 30, (p("Aluminum Ingot", 60), p(copper_ingot, 22.5)));
+
+	public static Recipe heat_sink = Recipe.New("Heat Sink", 10, (p(alclad_alum_sheet, 8*10/2), p(rubber, 14*10/2)));
+	public static Recipe radio_control_unit = Recipe.New("Radio Control Unit", 2.5, (p(heat_sink, 4*2.5), p(rubber, 16*2.5), p(crystal_oscillator, 2.5), p(computer, 2.5)));
+
+	public static Recipe turbo_motor = Recipe.New("Turbo Motor", 1.875, (p(heat_sink, 4*1.875), p(radio_control_unit, 2*1.875), p(motor, 4*1.875), p(rubber, 24*1.875)));
+
+	public static Recipe uranium = Recipe.New("Uranium", 120, plural: "");
+	public static Recipe sulfur = Recipe.New("Sulfur", 120, plural: "");
+
+	public static Recipe sulfuric_acid = Recipe.New("Sulfuric Acid", 100, (p(sulfur, 50), p(water, 50)), plural: "");
+	public static Recipe uranium_pellet = Recipe.New("Uranium Pellet", (p("Uranium Pellet", 50), p("Sulfuric Acid", 20)), (p(uranium, 50), p(sulfuric_acid, 80)));
+
+	public static Recipe encased_uranium_cell = Recipe.New("Encased Uranium Cell", 10, (p(uranium_pellet, 40), p(concrete, 9)));
+	public static Recipe electro_control_rod = Recipe.New("Electromagnetic COntrol Rod", 4, (p(stator, 6), p(ai_limiter, 4)));
+
+	public static Recipe nuclear_fuel_rod = Recipe.New("Nuclear Fuel Rod", 0.4, (p(encased_uranium_cell, 25*.4), p(encased_beam, 3*.4), p(electro_control_rod, 5*.4)));
 }
 #pragma warning restore 0618

@@ -181,7 +181,7 @@ public class BldgPlan {
 
 		while ((!ignorePower && AlmostLt(prod.NetPower, 0d)) || prod.HasNegativeNet(margin) || (!ignoreCosts && missingCosts != null && missingCosts.Count > 0)) {
 			margin = FUZZY_MARGIN;
-			if (++iters > 10)
+			if (++iters > 100)
 				throw new Exception("This is running away.");
 
 			newBldgs.Clear();
@@ -244,7 +244,7 @@ public class BldgPlan {
 					}
 				}
 				else {
-					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, out currOCRate, rcpMarginFactor: rcpMargin));
+					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, out currOCRate, rcpMarginFactor: rcpMarginFactor));
 				}
 			}
 
