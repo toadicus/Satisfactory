@@ -165,10 +165,13 @@ public class Building {
 	public virtual string LongString() {
 		Production prod = this.GetProduction();
 
-		return "{0} ({1}) @ {2:P0} ({3:G4} MW, demands: {4})".Format(this.Name, string.Join(", ", prod.Gross.Values), this.OCRate, this.Power, string.Join(", ", prod.Demands.Values));
+		return "{0} ({1}: {2}) @ {3:P0} ({4:G4} MW, demands: {5})".Format(this.Name, this.Assignment.name, string.Join(", ", prod.Gross.Values), this.OCRate, this.Power, string.Join(", ", prod.Demands.Values));
 	}
 
 	public Building(string name, BldgPlan plan, Recipe assignment = null, double ocrate = 1d) {
+		if (assignment != null && !plan.BuildList.Contains(assignment)) {
+			throw new ArgumentException("A building cannot be built for a recipe it can not produce ({0} does not build {1}".Format(name, assignment.name));
+		}
 		this.Name = name;
 		this.Plan = plan;
 		this.Power = plan.BasePower;

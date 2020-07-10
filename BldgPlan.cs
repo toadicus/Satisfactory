@@ -1,10 +1,11 @@
-﻿using System;
+﻿using ConfigParser;
+using Satisfactory.Schema;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static FuzzyCompare;
-using static RecipeDefs;
 using static Utils;
 
 using u8 = System.Byte;
@@ -17,8 +18,6 @@ public class BldgPlan {
 	static BldgPlan() {
 		List = new List<BldgPlan>();
 		IndexByRecipe = new Dictionary<string, List<BldgPlan>>();
-
-		RuntimeHelpers.RunClassConstructor(typeof(BuildingDefs).TypeHandle);
 	}
 
 	public static BldgPlan New(string name, double basePower, ITuple costs, ITuple buildList = null, double rateMultiplier = 1d) {
@@ -101,10 +100,6 @@ public class BldgPlan {
 			newOCRate = demandRate / (rcpRate * count);
 		}
 
-		if (AlmostEq(newOCRate, 1d, rcpMarginFactor)) {
-			newOCRate = 1d;
-		}
-
 		Building[] bldgs = new Building[count];
 
 		for (int idx = 0; idx < count; idx++) {
@@ -181,7 +176,7 @@ public class BldgPlan {
 
 		while ((!ignorePower && AlmostLt(prod.NetPower, 0d)) || prod.HasNegativeNet(margin) || (!ignoreCosts && missingCosts != null && missingCosts.Count > 0)) {
 			margin = FUZZY_MARGIN;
-			if (++iters > 100)
+			if (++iters > 254)
 				throw new Exception("This is running away.");
 
 			newBldgs.Clear();
@@ -216,10 +211,9 @@ public class BldgPlan {
 				double rcpMargin = rcpRate * rcpMarginFactor + FUZZY_MARGIN;
 
 				if (AlmostGte(part.rate, 0, rcpMargin)) {
-					margin = max(margin, rcpMargin);
 					continue;
 				}
-
+				margin = max(margin, rcpMargin);
 
 
 				double currOCRate = 1d;
@@ -255,7 +249,7 @@ public class BldgPlan {
 			newBldgs.Clear();
 
 			if (!ignorePower && AlmostLt(prod.NetPower, 0)) {
-				Generator[] newGens = GenrPlan.MakeGenrsForPower(-prod.NetPower, fuel.name);
+				Generator[] newGens = GenrPlan.MakeGenrsForPower(-prod.NetPower, "Fuel");
 
 				newBldgs.AddRange(newGens);
 
@@ -280,6 +274,75 @@ public class BldgPlan {
 				}
 
 				IndexByRecipe[rcp.name].Add(plan);
+			}
+		}
+	}
+
+	public static NodeDefinition GetNodeDefinition(BldgPlan plan) {
+		NodeDefinition node = new NodeDefinition(PlanSpec.PLAN_NODE);
+
+		node.AddValue(PlanSpec.NAME_KEY, plan.Name);
+		node.AddValue(PlanSpec.BASE_POWER_KEY, plan.BasePower.ToString("G7"));
+		node.AddValue(PlanSpec.RATE_MULT_KEY, plan.RateMultiplier.ToString("G7"));
+
+		if (plan.buildList != null) {
+			foreach (Recipe rcp in plan.buildList) {
+				node.AddValue(PlanSpec.BUILD_LIST_KEY, rcp.name);
+			}
+		}
+
+		NodeDefinition costsNode = new NodeDefinition(PlanSpec.COSTS_NODE);
+		foreach (Part part in plan.Costs) {
+			costsNode.AddNode(Part.GetNodeDefinition(part));
+        }
+		node.AddNode(costsNode);
+
+		return node;
+    }
+
+	public static BldgPlan GetPlanFromNode(NodeDefinition node) {
+		string name = node.GetValue(PlanSpec.NAME_KEY);
+		double basePower = double.Parse(node.GetValue(PlanSpec.BASE_POWER_KEY));
+		double rateMultiplier = double.Parse(node.GetValue(PlanSpec.RATE_MULT_KEY));
+
+		var buildListS = node.GetValues(PlanSpec.BUILD_LIST_KEY);
+
+		List<Recipe> buildList = new List<Recipe>();
+
+		if (buildListS != null) {
+			foreach (string rcpName in buildListS) {
+				Recipe rcp = Recipe.Get(rcpName);
+				buildList.Add(rcp);
+			}
+		}
+
+		NodeDefinition costsNode = node.GetFirstNodeByName(PlanSpec.COSTS_NODE);
+		var costNodes = costsNode.GetNodesByName(PartSpec.PART_NODE);
+
+		List<Part> costs = new List<Part>();
+
+		foreach (NodeDefinition costNode in costNodes) {
+			Part cost = Part.GetPartFromNode(costNode);
+			costs.Add(cost);
+        }
+
+		return new BldgPlan(name, basePower, costs, buildList, rateMultiplier);
+    }
+
+	public static void LoadAllFromPath(string path) {
+		var nodes = ConfigFile.LoadFromPath(path);
+
+		foreach (NodeDefinition node in nodes) {
+			BldgPlan plan;
+			switch (node.NodeName) {
+				case PlanSpec.PLAN_NODE:
+					plan = BldgPlan.GetPlanFromNode(node);
+					break;
+				case PlanSpec.GENR_NODE:
+					plan = GenrPlan.GetPlanFromNode(node) as BldgPlan;
+					break;
+				default:
+					throw new NotImplementedException("Only building and generator plans are supported at this time.");
 			}
 		}
 	}
@@ -315,7 +378,7 @@ public class BldgPlan {
 		this.Name = name;
 		this.BasePower = basePower;
 		this.Costs = costs;
-		this.BuildList = BuildList;
+		this.BuildList = buildList;
 		this.RateMultiplier = rateMultiplier;
 
 		BldgPlan.List.Add(this);

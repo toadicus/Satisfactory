@@ -9,14 +9,17 @@ using u8 = System.Byte;
 public class Production {
 	#region static
 	public static Production CalcMinProductionFor(Production prod, double margin = FUZZY_MARGIN) {
+		Production result = new Production();
+		result.Add(prod);
+
 		u8 iters = 0;
-		while (prod.HasNegativeNet(margin)) {
+		while (result.HasNegativeNet(margin)) {
 			if (++iters > 100)
 				throw new Exception("This is running away.");
 
 			Production iterProd = new Production();
 
-			foreach (Part part in prod.Net.Values) {
+			foreach (Part part in result.Net.Values) {
 				if (AlmostGte(part.rate, 0d))
 					continue;
 
@@ -26,10 +29,10 @@ public class Production {
 					iterProd.Add(rcp.GetNProductionByIndex(-part.rate, 0));
 			}
 
-			prod.Add(iterProd);
+			result.Add(iterProd);
 		}
 
-		return prod;
+		return result;
 	}
 
 	public static Production CalcMinProductionFor(Recipe rcp) {

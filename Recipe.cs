@@ -1,4 +1,6 @@
-﻿using System;
+﻿using ConfigParser;
+using Satisfactory.Schema;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -15,8 +17,6 @@ public class Recipe {
 		Recipe.IndexByName = new Dictionary<string, Recipe>();
 		Recipe.IndexByPart = new Dictionary<string, List<Recipe>>();
 		List = new List<Recipe>();
-
-		RuntimeHelpers.RunClassConstructor(typeof(RecipeDefs).TypeHandle);
 	}
 
 	public static Recipe New(string name, List<Part> production, List<Part> demands, string plural = "s") {
@@ -93,7 +93,7 @@ public class Recipe {
 
 	// WIP: Needs more heuristics.
 	public static bool TryFindRecipeFor(string name, out Recipe rcp) {
-		if (Recipe.IndexByName.ContainsKey(name)) {
+		if (Recipe.IndexByName.ContainsKey(name) && Recipe.IndexByPart[name].Count < 2) {
 			rcp = Recipe.IndexByName[name];
 		}
 		else {
@@ -128,6 +128,63 @@ public class Recipe {
 		throw new ArgumentOutOfRangeException("No recipe producing {0} exists.".Format(name));
 	}
 
+	public static NodeDefinition GetNodeDefinition(Recipe rcp) {
+		NodeDefinition node = new NodeDefinition(RecipeSpec.RECIPE_NODE);
+
+		node.AddValue(RecipeSpec.NAME_KEY, rcp.name);
+		node.AddValue(RecipeSpec.PLURAL_KEY, rcp.plural);
+
+		NodeDefinition prodNode = new NodeDefinition(RecipeSpec.PRODUCTION_NODE);
+		foreach (Part part in rcp.production) {
+			prodNode.AddNode(Part.GetNodeDefinition(part));
+        }
+		node.AddNode(prodNode);
+
+		NodeDefinition dmndNode = new NodeDefinition(RecipeSpec.DEMANDS_NODE);
+		foreach (Part part in rcp.demands) {
+			dmndNode.AddNode(Part.GetNodeDefinition(part));
+        }
+		node.AddNode(dmndNode);
+
+		return node;
+    }
+
+
+	public static Recipe GetRecipeFromNode(NodeDefinition node) {
+		string name = node.GetValue(RecipeSpec.NAME_KEY);
+		string plural = node.GetValue(RecipeSpec.PLURAL_KEY);
+
+		NodeDefinition prodNode = node.GetFirstNodeByName(RecipeSpec.PRODUCTION_NODE);
+		List<Part> production = new List<Part>();
+		foreach (NodeDefinition partNode in prodNode.GetNodesByName(RecipeSpec.PART_NODE)) {
+			Part prod = Part.GetPartFromNode(partNode);
+			production.Add(prod);
+        }
+
+		NodeDefinition dmndNode = node.GetFirstNodeByName(RecipeSpec.DEMANDS_NODE);
+		List<Part> demands = new List<Part>();
+		var dmndNodes = dmndNode.GetNodesByName(RecipeSpec.PART_NODE);
+		if (dmndNodes != null) {
+			foreach (NodeDefinition partNode in dmndNode.GetNodesByName(RecipeSpec.PART_NODE)) {
+				Part dmnd = Part.GetPartFromNode(partNode);
+				demands.Add(dmnd);
+			}
+		}
+
+		return new Recipe(name, production, demands, plural, true);
+	}
+
+	public static void LoadAllFromPath(string path) {
+		var nodes = ConfigFile.LoadFromPath(path);
+
+		foreach (NodeDefinition node in nodes) {
+			Recipe rcp = Recipe.GetRecipeFromNode(node);
+		}
+
+		foreach (Recipe rcp in Recipe.List) {
+			rcp.CalculateGeneration();
+        }
+	}
 	#endregion
 	public string name { get; }
 	public string plural { get; }
@@ -136,7 +193,7 @@ public class Recipe {
 	public List<Part> demands { get; }
 	public List<string> provides { get; }
 
-	public u8 gen { get; }
+	public u8 gen { get; protected set; }
 
 	[Obsolete("Recipe.part is a legacy method and should be avoided.")]
 	public Part part {
@@ -147,14 +204,18 @@ public class Recipe {
 	}
 
 	public double GetRateOfPart(Part part) {
-		foreach (Part p in this.production) {
-			if (part.name == p.name) {
-				return p.rate;
-			}
-		}
-
-		throw new ArgumentOutOfRangeException("Recipe {0} does not provide part {1}".Format(this.name, part.name));
+		return GetRateByName(part.name);
 	}
+
+	public double GetRateByName(string partName) {
+		foreach (Part p in this.production) {
+			if (p.name == partName) {
+				return p.rate;
+            }
+        }
+
+		throw new KeyNotFoundException("Recipe {0} does not provide part {1}".Format(this.name, partName));
+    }
 
 	public bool TryGetIndexOf(string name, out u8 idx) {
 		u8 _idx;
@@ -236,17 +297,13 @@ public class Recipe {
 		return string.Join(", ", this.production.ConvertAll(p => p.ToString()));
 	}
 
-	protected u8 CalculateGeneration() {
+	public u8 CalculateGeneration() {
 		u8 g = 1;
 
 		u8 sub = 0;
 		foreach (Part part in this.demands) {
-			Recipe rcp;
-			if (TryFindRecipeFor(part.name, out rcp)) {
-				sub = max(sub, rcp.gen);
-			}
-			else {
-				sub = 0;
+			if (Recipe.TryFindRecipeFor(part.name, out Recipe rcp)) {
+				sub = max(rcp.CalculateGeneration());
 			}
 		}
 
@@ -256,7 +313,7 @@ public class Recipe {
 	}
 
 	#region CONSTRUCTOR
-	private Recipe(string name, List<Part> production, List<Part> demands, string plural) {
+	private Recipe(string name, List<Part> production, List<Part> demands, string plural, bool deferGeneration = false) {
 		if (IndexByName.ContainsKey(name)) {
 			throw new ArgumentException(string.Format("A part named {0} already exists! ({1})", name, IndexByName[name]));
 		}
@@ -278,7 +335,8 @@ public class Recipe {
 
 		IndexByName[name] = this;
 
-		this.gen = this.CalculateGeneration();
+		if (!deferGeneration)
+			this.gen = this.CalculateGeneration();
 
 		List.Add(this);
 	}

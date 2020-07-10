@@ -40,6 +40,6 @@ public class Generator : Building {
 		return "{0} @ {1:P0} ({2}, {3})".Format(this.Name, this.ocrate, this.Power, string.Join(", ", this.FuelRate));
 	}
 	public Generator(string name, BldgPlan plan, Part baseFuelRate, double ocrate) : base(name, plan, ocrate: ocrate) {
-		this.FuelRate = baseFuelRate.Copy();
+		this.FuelRate = baseFuelRate;
 	}
 }

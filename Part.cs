@@ -1,4 +1,6 @@
-﻿using System;
+﻿using ConfigParser;
+using Satisfactory.Schema;
+using System;
 using u8 = System.Byte;
 
 public struct Part {
@@ -20,6 +22,27 @@ public struct Part {
 			return gen;
 		}
 		throw new Exception("No recipe exists for part named {0}".Format(part.name));
+	}
+
+	public static NodeDefinition GetNodeDefinition(Part part) {
+		NodeDefinition node = new NodeDefinition(PartSpec.PART_NODE);
+		;
+
+		node.AddValue(PartSpec.NAME_KEY, part.name);
+		node.AddValue(PartSpec.PLURAL_KEY, part.plural);
+		node.AddValue(PartSpec.RATE_KEY, part.rate.ToString("G13"));
+
+		return node;
+	}
+
+	public static Part GetPartFromNode(NodeDefinition node) {
+		Part part = new Part();
+
+		part.name = node.GetValue(PartSpec.NAME_KEY);
+		part.plural = node.GetValue(PartSpec.PLURAL_KEY, "s");
+		part.rate = node.GetValue<double>(PartSpec.RATE_KEY);
+
+		return part;
 	}
 	#endregion
 	public string name { get; private set; }
@@ -53,12 +76,12 @@ public struct Part {
 		//	return new CompoundPart(this, rhs);
 		//}
 		else {
-			return new Part(lhs.name, lhs.rate + rhs.rate);
+			return new Part(lhs.name, lhs.rate + rhs.rate, lhs.plural);
 		}
 	}
 
 	public static Part operator -(Part un) {
-		return new Part(un.name, -un.rate);
+		return new Part(un.name, -un.rate, un.plural);
 	}
 
 	public static Part operator -(Part lhs, Part rhs) {
@@ -66,10 +89,10 @@ public struct Part {
 	}
 
 	public static Part operator *(Part lhs, double rhs) {
-		return new Part(lhs.name, lhs.rate * rhs);
+		return new Part(lhs.name, lhs.rate * rhs, lhs.plural);
 	}
 
 	public static Part operator /(Part lhs, double rhs) {
-		return new Part(lhs.name, lhs.rate / rhs);
+		return new Part(lhs.name, lhs.rate / rhs, lhs.plural);
 	}
 }

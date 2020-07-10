@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using ConfigParser;
 using u8 = System.Byte;
 
 public class GenrPlan : BldgPlan {
-	public static List<GenrPlan> GenrList = new List<GenrPlan>();
+    #region STATIC
+    public static List<GenrPlan> GenrList = new List<GenrPlan>();
 	public static Dictionary<string, GenrPlan> IndexByFuelType = new Dictionary<string, GenrPlan>();
 
 	public static GenrPlan New(String name, Double basePower, Part baseFuelRate, ITuple costs, ITuple buildList = null) {
@@ -36,6 +38,28 @@ public class GenrPlan : BldgPlan {
 
 		return genrList;
 	}
+
+	public static new GenrPlan GetPlanFromNode(NodeDefinition node) {
+		string name = node.GetValue("name");
+		double basePower = double.Parse(node.GetValue("basePower"));
+
+		NodeDefinition fuelNode = node.GetFirstNodeByName("FUEL").GetFirstNodeByName("PART");
+
+		Part baseFuelRate = Part.GetPartFromNode(fuelNode);
+
+		NodeDefinition costsNode = node.GetFirstNodeByName("COSTS");
+		var costNodes = costsNode.GetNodesByName("PART");
+
+		List<Part> costs = new List<Part>();
+
+		foreach (NodeDefinition costNode in costNodes) {
+			Part cost = Part.GetPartFromNode(costNode);
+			costs.Add(cost);
+		}
+
+		return new GenrPlan(name, basePower, baseFuelRate, costs);
+	}
+	#endregion
 
 	public Part BaseFuelRate { get; protected set; }
 
