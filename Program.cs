@@ -8,9 +8,12 @@ namespace Satisfactory {
 	struct Conditions {
 		public bool ignoreCosts;
 		public bool ignorePower;
+		public bool allowDemandPreference;
 		public double maxOCRate;
 		public double rcpMarginFactor;
-		public Part[] partTargets;
+
+		public List<Part> partTargets;
+		public List<string> ignoreRecipes;
     }
 
 	class Program {
@@ -30,8 +33,10 @@ namespace Satisfactory {
 
 					bool ignoreCosts = false;
 					bool ignorePower = false;
+					bool allowDemandPreference = true;
 					double maxOCRate = 1d;
 					double rcpMarginFactor = 0.01d;
+					List<string> ignoreRecipes = null;
 
 					foreach (NodeDefinition node in nodes) {
 						switch (node.NodeName) {
@@ -44,8 +49,12 @@ namespace Satisfactory {
 							case TestSpec.CONDITIONS_NODE:
 								ignoreCosts = node.GetValue(TestSpec.IGN_COSTS_KEY, ignoreCosts);
 								ignorePower = node.GetValue(TestSpec.IGN_POWER_KEY, ignorePower);
+								allowDemandPreference = node.GetValue(TestSpec.ALLOW_DEM_PREF_KEY, allowDemandPreference);
 								maxOCRate = node.GetValue(TestSpec.MAX_OC_KEY, maxOCRate);
 								rcpMarginFactor = node.GetValue(TestSpec.MARGIN_FACTOR_KEY, rcpMarginFactor);
+								if (node.HasValue(TestSpec.IGNORE_RECIPES_KEY)) {
+									ignoreRecipes = node.GetValues(TestSpec.IGNORE_RECIPES_KEY);
+                                }
 								break;
 							default:
 								throw new NotImplementedException("Unsupported specification node.");
@@ -55,10 +64,11 @@ namespace Satisfactory {
 					conditions.Add(new Conditions() {
 						ignoreCosts = ignoreCosts,
 						ignorePower = ignorePower,
-
+						allowDemandPreference = allowDemandPreference,
 						maxOCRate = maxOCRate,
 						rcpMarginFactor = rcpMarginFactor,
-						partTargets = partTargets.ToArray()
+						partTargets = partTargets,
+						ignoreRecipes = ignoreRecipes ?? new List<string> { }
 					});
 				}
             }
@@ -66,11 +76,11 @@ namespace Satisfactory {
 			return conditions;
         }
 
-		static void Test(List<Building> bldgs, bool ignoreCosts, bool ignorePower, double maxOCRate, double rcpMarginFactor) {
+		static void Test(List<Building> bldgs, bool ignoreCosts, bool ignorePower, bool allowDemandPreference, double maxOCRate, double rcpMarginFactor) {
 			print("\nTesting at max clock rate of {0:P0}\n".Format(maxOCRate));
 
 			Production prod;
-			(bldgs, prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts, ignorePower, maxOCRate, rcpMarginFactor);
+			(bldgs, prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts, ignorePower, allowDemandPreference, maxOCRate, rcpMarginFactor);
 
 			Building.PrintLikeBuildings(bldgs);
 			print();
@@ -82,6 +92,10 @@ namespace Satisfactory {
 		}
 
 		static void Test(Conditions conditions) {
+			foreach (string rcpName in conditions.ignoreRecipes) {
+				Recipe.RemoveRecipeByName(rcpName);
+			}
+
 			List<Building> bldgs = new List<Building>();
 
 			foreach (Part target in conditions.partTargets) {
@@ -109,7 +123,7 @@ namespace Satisfactory {
                 }
             }
 
-			Test(bldgs, conditions.ignoreCosts, conditions.ignorePower, conditions.maxOCRate, conditions.rcpMarginFactor);
+			Test(bldgs, conditions.ignoreCosts, conditions.ignorePower, conditions.allowDemandPreference, conditions.maxOCRate, conditions.rcpMarginFactor);
         }
 
 		static void Main(string[] args) {

@@ -3,6 +3,7 @@ using Satisfactory.Schema;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Cache;
 using System.Runtime.CompilerServices;
 using static Utils;
 using u8 = System.Byte;
@@ -81,8 +82,22 @@ public class Recipe {
 	}
 
 	public static Recipe Get(string name) {
-		return IndexByName[name];
+		Recipe rcp;
+		if (TryGetRecipeByName(name, out rcp)) {
+			return rcp;
+        }
+		throw new KeyNotFoundException("No recipe named {0} exists.".Format(name));
 	}
+
+	public static bool TryGetRecipeByName(string name, out Recipe rcp) {
+		if (IndexByName.ContainsKey(name)) {
+			rcp = IndexByName[name];
+			return true;
+        } else {
+			rcp = null;
+			return false;
+        }
+    }
 
 	public static Recipe CopyAtMultiplier(Recipe recipe) {
 		List<Part> newProd = new List<Part>();
@@ -92,21 +107,34 @@ public class Recipe {
 	}
 
 	// WIP: Needs more heuristics.
-	public static bool TryFindRecipeFor(string name, out Recipe rcp) {
+	public static bool TryFindRecipeFor(string name, out Recipe rcp, List<Part> preferDemands = null, double rcpMarginFactor = FuzzyCompare.FUZZY_MARGIN) {
 		rcp = null;
 
 		if (Recipe.IndexByName.ContainsKey(name)) {
 			rcp = Recipe.IndexByName[name];
         }
 
-		if (Recipe.IndexByPart.ContainsKey(name) && Recipe.IndexByPart[name].Count > 1) {
+		if (Recipe.IndexByPart.ContainsKey(name) && (!Recipe.IndexByName.ContainsKey(name) || Recipe.IndexByPart[name].Count > 1)) {
 			Recipe bestRcp = null;
 
 			double rate = 0d;
 
-			// HACK: This just finds the way to make the most of a thing in a single recipe.
 			foreach (Recipe rRcp in Recipe.IndexByPart[name]) {
 				double rRate = rRcp.GetProductionOf(name).rate;
+				if (preferDemands != null) {
+					bool quit = false;
+					foreach (Part preference in preferDemands) {
+						foreach (Part demand in rRcp.demands) {
+							if (demand.name == preference.name && FuzzyCompare.AlmostGte(preference.rate, demand.rate, rcpMarginFactor * preference.rate + FuzzyCompare.FUZZY_MARGIN)) {
+								rRate *= 2;
+								quit = true;
+								break;
+                            }
+                        }
+						if (quit)
+							break;
+                    }
+                }
 				if (rRate > rate) {
 					rate = rRate;
 					bestRcp = rRcp;
@@ -127,6 +155,29 @@ public class Recipe {
 
 		throw new ArgumentOutOfRangeException("No recipe producing {0} exists.".Format(name));
 	}
+
+	public static void RemoveRecipeByName(string name) {
+		for (UInt16 idx = 0; idx < Recipe.List.Count; idx++) {
+			Recipe rcp = Recipe.List[idx];
+			if (rcp.name == name) {
+				Recipe.List.RemoveAt(idx);
+				if (Recipe.IndexByName.ContainsKey(name))
+					Recipe.IndexByName.Remove(name);
+
+				foreach (Part part in rcp.production) {
+					if (Recipe.IndexByPart.ContainsKey(part.name)) {
+						Recipe.IndexByPart[part.name].Remove(rcp);
+
+						if (Recipe.IndexByPart[part.name].Count < 1) {
+							Recipe.IndexByPart.Remove(part.name);
+                        }
+                    }
+                }
+
+				break;
+            }
+        }
+    }
 
 	public static NodeDefinition GetNodeDefinition(Recipe rcp) {
 		NodeDefinition node = new NodeDefinition(RecipeSpec.RECIPE_NODE);

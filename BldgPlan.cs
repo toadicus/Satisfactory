@@ -129,7 +129,7 @@ public class BldgPlan {
 	}
 
 
-	public static ValueTuple<List<Building>, Production> ProcessBuildings(List<Building> bldgs, bool ignoreCosts = false, bool ignorePower = false, double maxOCRate = 1.0d, double rcpMarginFactor = 0d) {
+	public static ValueTuple<List<Building>, Production> ProcessBuildings(List<Building> bldgs, bool ignoreCosts = false, bool ignorePower = false, bool allowDemandPreference = true, double maxOCRate = 1.0d, double rcpMarginFactor = 0d) {
 		rcpMarginFactor += FUZZY_MARGIN;
 		u8 iters = 0;
 
@@ -138,6 +138,7 @@ public class BldgPlan {
 
 		List<Building> newBldgs = new List<Building>();
 		List<Part> missingCosts = null;
+		List<Part> preferDemands = new List<Part>();
 
 		Dictionary<string, bool> partsToIngore = new Dictionary<string, bool>();
 
@@ -163,12 +164,12 @@ public class BldgPlan {
 			}
 		}
 
-		foreach ((Recipe rcp, Part part) in priorityRcps) {
-			// If we found any priority recipes, make buildings for them first.
-			newBldgs.AddRange(MakeBuildingsForPartTarget(rcp, part, maxOCRate: maxOCRate));
-		}
+        foreach ((Recipe rcp, Part part) in priorityRcps) {
+            // If we found any priority recipes, make buildings for them first.
+            newBldgs.AddRange(MakeBuildingsForPartTarget(rcp, part, maxOCRate: maxOCRate));
+        }
 
-		prod.AddBuildings(newBldgs);
+        prod.AddBuildings(newBldgs);
 		bldgs.AddRange(newBldgs);
 		newBldgs.Clear();
 
@@ -205,14 +206,23 @@ public class BldgPlan {
 				}
 			}
 
+			preferDemands.Clear();
+
 			foreach (Part part in prod.Net.Values) {
-				Recipe rcp = Recipe.FindRecipeFor(part.name);
+				Recipe rcp;
+				if (!Recipe.TryFindRecipeFor(part.name, out rcp, preferDemands, rcpMarginFactor)) {
+					throw new Exception("Critical error: Could not find recipe for part named {0} while balancing production.".Format(part.name));
+                }
+
 				double rcpRate = rcp.GetRateOfPart(part);
 				double rcpMargin = rcpRate * rcpMarginFactor + FUZZY_MARGIN;
 
 				if (AlmostGte(part.rate, 0, rcpMargin)) {
+					if (allowDemandPreference)
+						preferDemands.Add(part);
 					continue;
 				}
+
 				margin = max(margin, rcpMargin);
 
 
@@ -265,10 +275,10 @@ public class BldgPlan {
 		IndexByRecipe.Clear();
 
 		foreach (BldgPlan plan in BldgPlan.List) {
-			if (plan.buildList is null)
+			if (plan.BuildList is null)
 				continue;
 
-			foreach (Recipe rcp in plan.buildList) {
+			foreach (Recipe rcp in plan.BuildList) {
 				if (!IndexByRecipe.ContainsKey(rcp.name)) {
 					IndexByRecipe[rcp.name] = new List<BldgPlan>();
 				}
@@ -285,8 +295,8 @@ public class BldgPlan {
 		node.AddValue(PlanSpec.BASE_POWER_KEY, plan.BasePower.ToString("G7"));
 		node.AddValue(PlanSpec.RATE_MULT_KEY, plan.RateMultiplier.ToString("G7"));
 
-		if (plan.buildList != null) {
-			foreach (Recipe rcp in plan.buildList) {
+		if (plan.BuildList != null) {
+			foreach (Recipe rcp in plan.BuildList) {
 				node.AddValue(PlanSpec.BUILD_LIST_KEY, rcp.name);
 			}
 		}
@@ -313,7 +323,7 @@ public class BldgPlan {
 			foreach (string rcpName in buildListS) {
 				Recipe rcp;
 
-				if (Recipe.TryFindRecipeFor(rcpName, out rcp)) {
+				if (Recipe.TryGetRecipeByName(rcpName, out rcp)) {
 					buildList.Add(rcp);
 				} else {
 					error("Skipping recipe named {0} when loading {1}: recipe does not exist.".Format(rcpName, name));
@@ -359,12 +369,12 @@ public class BldgPlan {
 
 
 	protected List<Recipe> buildList;
-	public List<Recipe> BuildList {
+	public IList<Recipe> BuildList {
 		get {
-			return buildList;
+			return buildList.AsReadOnly();
 		}
 		set {
-			buildList = value;
+			buildList = value as List<Recipe>;
 			rebuildIndexByRecipe();
 		}
 	}

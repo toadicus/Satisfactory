@@ -11,6 +11,8 @@ namespace Satisfactory.Schema {
         public const string IGN_POWER_KEY = "ignorePower";
         public const string MAX_OC_KEY = "maxOCRate";
         public const string MARGIN_FACTOR_KEY = "rcpMarginFactor";
+        public const string IGNORE_RECIPES_KEY = "ignoreRecipes";
+        public const string ALLOW_DEM_PREF_KEY = "allowDemandPreference";
 
         public const string PART_TGT_NODE = "PART_TARGET";
         public const string CONDITIONS_NODE = "CONDITIONS";
