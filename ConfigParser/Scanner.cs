@@ -67,6 +67,10 @@ namespace ConfigParser
 								this.pointer++;
 								// this.state = ScannerState.InEOL;
 								break;
+							case CommentOpenChar:
+								this.pointer++;
+								this.state = ScannerState.TryCommentStart;
+								break;
 							default:
 								if (Char.IsLetter(c)) {
 									this.state = ScannerState.InBlockIdent;
@@ -263,7 +267,12 @@ namespace ConfigParser
 								this.commentDepth--;
 								if (this.commentDepth == 0)
 								{
-									this.state = ScannerState.OutOfValue;
+									if (this.blockDepth == 0) {
+										this.state = ScannerState.OutOfBlock;
+									}
+									else {
+										this.state = ScannerState.OutOfValue;
+									}
 								}
 								break;
 							default:

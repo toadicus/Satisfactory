@@ -93,23 +93,23 @@ public class Recipe {
 
 	// WIP: Needs more heuristics.
 	public static bool TryFindRecipeFor(string name, out Recipe rcp) {
-		if (Recipe.IndexByName.ContainsKey(name) && Recipe.IndexByPart[name].Count < 2) {
+		rcp = null;
+
+		if (Recipe.IndexByName.ContainsKey(name)) {
 			rcp = Recipe.IndexByName[name];
-		}
-		else {
-			// There's no Recipe by this name; let's look for other matches that can be built.
+        }
+
+		if (Recipe.IndexByPart.ContainsKey(name) && Recipe.IndexByPart[name].Count > 1) {
 			Recipe bestRcp = null;
 
 			double rate = 0d;
 
 			// HACK: This just finds the way to make the most of a thing in a single recipe.
 			foreach (Recipe rRcp in Recipe.IndexByPart[name]) {
-				if (BldgPlan.IndexByRecipe.ContainsKey(rRcp.name)) {
-					double rRate = rRcp.GetProductionOf(name).rate;
-					if (rRate > rate) {
-						rate = rRate;
-						bestRcp = rRcp;
-					}
+				double rRate = rRcp.GetProductionOf(name).rate;
+				if (rRate > rate) {
+					rate = rRate;
+					bestRcp = rRcp;
 				}
 			}
 

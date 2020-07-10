@@ -62,4 +62,12 @@ public static class Utils {
 	public static string Format(this string format, params object[] args) {
 		return string.Format(format, args);
 	}
+
+	public static void error(object o) {
+		Console.Error.WriteLine(o);
+    }
+
+	public static void error(params object[] args) {
+		Console.Error.WriteLine(string.Join(" ", args));
+	}
 }

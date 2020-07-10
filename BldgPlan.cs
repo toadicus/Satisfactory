@@ -311,8 +311,13 @@ public class BldgPlan {
 
 		if (buildListS != null) {
 			foreach (string rcpName in buildListS) {
-				Recipe rcp = Recipe.Get(rcpName);
-				buildList.Add(rcp);
+				Recipe rcp;
+
+				if (Recipe.TryFindRecipeFor(rcpName, out rcp)) {
+					buildList.Add(rcp);
+				} else {
+					error("Skipping recipe named {0} when loading {1}: recipe does not exist.".Format(rcpName, name));
+                }
 			}
 		}
 
