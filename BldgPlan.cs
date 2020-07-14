@@ -168,6 +168,16 @@ public class BldgPlan {
 			// Look for parts that are produced as a secondary output for any primary recipes.
 			Recipe primary;
 			if (AlmostGte(priPart.rate, 0, priPart.rate * rcpMarginFactor) && Recipe.TryFindRecipeFor(priPart.name, out primary)) {
+				bool skip = false;
+				foreach (Building bldg in bldgs) {
+					if (bldg.Assignment.name == primary.name) {
+						skip = true;
+						break;
+                    }
+                }
+				if (skip)
+					continue;
+
 				// We found a primary recipe for this part -- time to subloop.
 				foreach (Part secPart in minPartList.Gross.Values) {
 					if (secPart.name == priPart.name || secPart.name == primary.name)
