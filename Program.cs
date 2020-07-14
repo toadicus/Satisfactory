@@ -6,10 +6,17 @@ using Satisfactory.Schema;
 
 namespace Satisfactory {
 	struct Conditions {
+		public const bool IGNORE_COSTS_DEFAULT = false;
+		public const bool IGNORE_POWER_DEFAULT = false;
+		public const bool ALLOW_PREFER_DEFAULT = true;
+		public const double MIN_OCRATE_DEFAULT = 0.5d;
+		public const double MAX_OCRATE_DEFAULT = 1.0d;
+		public const double MARGIN_FACTOR_DEFAULT = 0.01d;
+
 		public bool ignoreCosts;
 		public bool ignorePower;
 		public bool allowDemandPreference;
-		public double maxOCRate;
+		public BldgPlan.OCRateBounds ocBounds;
 		public double rcpMarginFactor;
 
 		public List<Part> partTargets;
@@ -31,11 +38,12 @@ namespace Satisfactory {
 
 					List<Part> partTargets = new List<Part>();
 
-					bool ignoreCosts = false;
-					bool ignorePower = false;
-					bool allowDemandPreference = true;
-					double maxOCRate = 1d;
-					double rcpMarginFactor = 0.01d;
+					bool ignoreCosts = Conditions.IGNORE_COSTS_DEFAULT;
+					bool ignorePower = Conditions.IGNORE_POWER_DEFAULT;
+					bool allowDemandPreference = Conditions.ALLOW_PREFER_DEFAULT;
+					double minOCRate = Conditions.MIN_OCRATE_DEFAULT;
+					double maxOCRate = Conditions.MAX_OCRATE_DEFAULT;
+					double rcpMarginFactor = Conditions.MARGIN_FACTOR_DEFAULT;
 					List<string> ignoreRecipes = null;
 
 					foreach (NodeDefinition node in nodes) {
@@ -50,6 +58,7 @@ namespace Satisfactory {
 								ignoreCosts = node.GetValue(TestSpec.IGN_COSTS_KEY, ignoreCosts);
 								ignorePower = node.GetValue(TestSpec.IGN_POWER_KEY, ignorePower);
 								allowDemandPreference = node.GetValue(TestSpec.ALLOW_DEM_PREF_KEY, allowDemandPreference);
+								minOCRate = node.GetValue(TestSpec.MIN_OC_KEY, minOCRate);
 								maxOCRate = node.GetValue(TestSpec.MAX_OC_KEY, maxOCRate);
 								rcpMarginFactor = node.GetValue(TestSpec.MARGIN_FACTOR_KEY, rcpMarginFactor);
 								if (node.HasValue(TestSpec.IGNORE_RECIPES_KEY)) {
@@ -65,7 +74,7 @@ namespace Satisfactory {
 						ignoreCosts = ignoreCosts,
 						ignorePower = ignorePower,
 						allowDemandPreference = allowDemandPreference,
-						maxOCRate = maxOCRate,
+						ocBounds = new BldgPlan.OCRateBounds(maxOCRate, minOCRate),
 						rcpMarginFactor = rcpMarginFactor,
 						partTargets = partTargets,
 						ignoreRecipes = ignoreRecipes ?? new List<string> { }
@@ -76,11 +85,13 @@ namespace Satisfactory {
 			return conditions;
         }
 
-		static void Test(List<Building> bldgs, bool ignoreCosts, bool ignorePower, bool allowDemandPreference, double maxOCRate, double rcpMarginFactor) {
+		static void Test(List<Building> bldgs, bool ignoreCosts, bool ignorePower, bool allowDemandPreference, BldgPlan.OCRateBounds ocBounds, double rcpMarginFactor) {
+			double maxOCRate = ocBounds.maxOCRate;
+
 			print("\nTesting at max clock rate of {0:P0}\n".Format(maxOCRate));
 
 			Production prod;
-			(bldgs, prod) = BldgPlan.ProcessBuildings(bldgs, ignoreCosts, ignorePower, allowDemandPreference, maxOCRate, rcpMarginFactor);
+			(bldgs, prod) = BldgPlan.ProcessBuildings(bldgs, ocBounds, ignoreCosts, ignorePower, allowDemandPreference, rcpMarginFactor);
 
 			Building.PrintLikeBuildings(bldgs);
 			print();
@@ -115,7 +126,7 @@ namespace Satisfactory {
 							double rate = double.IsNaN(target.rate) ? rcpRate : target.rate;
 							double _;
 
-							Building[] bldg = BldgPlan.MakeBuildingsForNofIndex(rcp, rate, rcpPartIdx, out _, conditions.maxOCRate, conditions.rcpMarginFactor);
+							Building[] bldg = BldgPlan.MakeBuildingsForNofIndex(rcp, rate, rcpPartIdx, out _, conditions.ocBounds, conditions.rcpMarginFactor);
 							bldgs.AddRange(bldg);
 							break;
                         }
@@ -123,7 +134,7 @@ namespace Satisfactory {
                 }
             }
 
-			Test(bldgs, conditions.ignoreCosts, conditions.ignorePower, conditions.allowDemandPreference, conditions.maxOCRate, conditions.rcpMarginFactor);
+			Test(bldgs, conditions.ignoreCosts, conditions.ignorePower, conditions.allowDemandPreference, conditions.ocBounds, conditions.rcpMarginFactor);
         }
 
 		static void Main(string[] args) {

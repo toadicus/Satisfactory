@@ -9,6 +9,7 @@ namespace Satisfactory.Schema {
         public const string RATE_KEY = "rate";
         public const string IGN_COSTS_KEY = "ignoreCosts";
         public const string IGN_POWER_KEY = "ignorePower";
+        public const string MIN_OC_KEY = "minOCRate";
         public const string MAX_OC_KEY = "maxOCRate";
         public const string MARGIN_FACTOR_KEY = "rcpMarginFactor";
         public const string IGNORE_RECIPES_KEY = "ignoreRecipes";
