@@ -3,6 +3,8 @@ using static Utils;
 using ConfigParser;
 using System;
 using Satisfactory.Schema;
+using System.Linq;
+using System.Text;
 
 namespace Satisfactory {
 	struct Conditions {
@@ -85,13 +87,12 @@ namespace Satisfactory {
 			return conditions;
         }
 
-		static void Test(List<Building> bldgs, bool ignoreCosts, bool ignorePower, bool allowDemandPreference, BldgPlan.OCRateBounds ocBounds, double rcpMarginFactor) {
+		static void Test(Production prod, List<Building> bldgs, bool ignoreCosts, bool ignorePower, bool allowDemandPreference, BldgPlan.OCRateBounds ocBounds, double rcpMarginFactor) {
 			double maxOCRate = ocBounds.maxOCRate;
 
 			print("\nTesting at max clock rate of {0:P0}\n".Format(maxOCRate));
 
-			Production prod;
-			(bldgs, prod) = BldgPlan.ProcessBuildings(bldgs, ocBounds, ignoreCosts, ignorePower, allowDemandPreference, rcpMarginFactor);
+			(bldgs, prod) = BldgPlan.ProcessBuildings(prod, bldgs, ocBounds, ignoreCosts, ignorePower, allowDemandPreference, rcpMarginFactor);
 
 			Building.PrintLikeBuildings(bldgs);
 			print();
@@ -106,38 +107,223 @@ namespace Satisfactory {
 			foreach (string rcpName in conditions.ignoreRecipes) {
 				Recipe.RemoveRecipeByName(rcpName);
 			}
-
+			Production prod = new Production();
 			List<Building> bldgs = new List<Building>();
 
 			foreach (Part target in conditions.partTargets) {
-				Recipe rcp;
+				Part part;
 
-				if (Recipe.TryFindRecipeFor(target.name, out rcp)) {
-					double rcpRate;
-					int rcpPartIdx;
+                if (double.IsNaN(target.rate)) {
+                    Recipe rcp;
 
-					for (int idx = 0; idx < rcp.production.Count; idx++) {
-						Part part = rcp.production[idx];
+                    if (Recipe.TryFindRecipeFor(target.name, out rcp)) {
+                        part = target.Copy(rcp.GetProdRateOfPart(target));
+                    }
+                    else {
+                        part = target.Copy(0);
+                    }
+                }
+                else {
+					part = target.Copy();
+                }
 
-						if (part.name == target.name) {
-							rcpRate = part.rate;
-							rcpPartIdx = idx;
+				prod.AddDemand(part);
+            }
 
-							double rate = double.IsNaN(target.rate) ? rcpRate : target.rate;
-							double _;
+			Test(prod, bldgs, conditions.ignoreCosts, conditions.ignorePower, conditions.allowDemandPreference, conditions.ocBounds, conditions.rcpMarginFactor);
+        }
 
-							Building[] bldg = BldgPlan.MakeBuildingsForNofIndex(rcp, rate, rcpPartIdx, out _, conditions.ocBounds, conditions.rcpMarginFactor);
-							bldgs.AddRange(bldg);
-							break;
+		class CSVTable {
+			public class CSVRow {
+				List<object> cells;
+				CSVTable host;
+				int rowIdx;
+
+				public void SetNumColumns(int num, string defaultString = "") {
+					if (cells.Count == num)
+						return;
+
+					if (cells.Count < num) {
+						while (cells.Count < num) {
+							cells.Add(defaultString);
+                        }
+                    }
+					else {
+						while (num < cells.Count) {
+							cells.RemoveAt(cells.Count - 1);
                         }
                     }
                 }
+
+				public void AddValue(object value) {
+					this.cells.Add(value);
+                }
+
+				public void AddValueByColumnHeader(string header, object value) {
+					if (!this.host.columnsByName.ContainsKey(header)) {
+						this.host.AddColumn(header);
+                    }
+
+					int idx = this.host.columnsByName[header];
+
+					this.cells[idx] = value;
+                }
+
+                public override string ToString() {
+					return string.Join(',', this.cells);
+                }
+
+				public CSVRow(CSVTable host, int rowIdx, params object[] cells) {
+					this.host = host;
+					this.rowIdx = rowIdx;
+					this.cells = new List<object> { cells };
+                }
             }
 
-			Test(bldgs, conditions.ignoreCosts, conditions.ignorePower, conditions.allowDemandPreference, conditions.ocBounds, conditions.rcpMarginFactor);
+			Dictionary<string, int> columnsByName = new Dictionary<string, int>();
+			List<string> columnHeaders = new List<string>();
+			List<CSVRow> rows = new List<CSVRow>();
+
+			public void AddColumn(string header) {
+				int idx = columnHeaders.Count;
+
+				if (columnsByName.ContainsKey(header)) {
+					header = "{0}_{1}".Format(header, columnsByName.Count(kvp => (kvp.Key == header)));
+                }
+
+				columnHeaders.Add(header);
+				columnsByName[header] = idx;
+
+				foreach (CSVRow row in this.rows) {
+					row.SetNumColumns(columnHeaders.Count);
+                }
+			}
+
+			public CSVRow AddRow(params object[] cells) {
+				int idx = this.rows.Count;
+
+				CSVRow row = new CSVRow(this, idx, cells);
+				row.SetNumColumns(this.columnHeaders.Count);
+
+				this.rows.Add(row);
+
+				return row;
+            }
+
+            public override String ToString() {
+				StringBuilder sb = new StringBuilder();
+
+				sb.Append(string.Join(',', this.columnHeaders));
+				sb.Append('\n');
+
+				foreach (CSVRow row in this.rows) {
+					sb.Append(row.ToString());
+					sb.Append('\n');
+                }
+
+				return sb.ToString();
+            }
+        }
+
+		static void BuildCSVs() {
+			CSVTable rcpTable = new CSVTable();
+
+			string rcpHeader = "Recipe";
+
+			rcpTable.AddColumn(rcpHeader);
+
+			foreach (Recipe rcp in Recipe.List) {
+				CSVTable.CSVRow row = rcpTable.AddRow();
+				row.AddValueByColumnHeader(rcpHeader, rcp.name);
+
+				foreach (Part part in rcp.production) {
+					row.AddValueByColumnHeader(part.name, part.rate);
+				}
+
+				foreach (Part part in rcp.demands) {
+					row.AddValueByColumnHeader(part.name, -part.rate);
+				}
+			}
+
+			print(rcpTable);
+
+			CSVTable bldgTable = new CSVTable();
+
+			string bldgHeader = "Building";
+
+			foreach (BldgPlan plan in BldgPlan.List) {
+				CSVTable.CSVRow row = bldgTable.AddRow();
+
+				row.AddValueByColumnHeader(bldgHeader, plan.Name);
+
+				if (plan is GenrPlan) { }
+				else {
+					foreach (Recipe rcp in plan.BuildList) {
+						row.AddValue(rcp.name);
+					}
+				}
+			}
+
+			print(bldgTable);
+		}
+
+		static void ParseGameDocs(string path) {
+			const string PartClassKey = "Class'/Script/FactoryGame.FGItemDescriptor'";
+			const string RecipeClassKey = "Class'/Script/FactoryGame.FGRecipe'";
+			const string DisplayNameKey = "mDisplayName";
+			const string IngredientsKey = "mIngredients";
+			const string ProducedInKey = "mProducedIn";
+			const string ProductKey = "mProduct";
+
+			using var docsStream = System.IO.File.OpenText(path);
+			string docsString = docsStream.ReadToEnd();
+			var docsJson = System.Text.Json.JsonDocument.Parse(docsString);
+
+			var docsLen = docsJson.RootElement.GetArrayLength();
+
+            for (UInt16 idx = 0; idx < docsLen; idx++) {
+				var jsonItem = docsJson.RootElement[idx];
+
+				print(jsonItem.GetProperty("NativeClass").ToString());
+
+				switch (jsonItem.GetProperty("NativeClass").ToString()) {
+					case RecipeClassKey:
+						var jsonRcpArray = jsonItem.GetProperty("Classes");
+
+						var rcpCount = jsonRcpArray.GetArrayLength();
+
+						for (UInt16 rIdx = 0; rIdx < rcpCount; rIdx++) {
+							var jsonRcp = jsonRcpArray[rIdx];
+
+							foreach (var item in jsonRcp.EnumerateObject()) {
+								print(item.ToString());
+							}
+							print();
+						}
+						break;
+					case PartClassKey:
+						var jsonPartArray = jsonItem.GetProperty("Classes");
+
+						var partCount = jsonPartArray.GetArrayLength();
+
+						for (UInt16 rIdx = 0; rIdx < partCount; rIdx++) {
+							var jsonPart = jsonPartArray[rIdx];
+
+							foreach (var item in jsonPart.EnumerateObject()) {
+								print(item.ToString());
+							}
+							print();
+						}
+						break;
+					default:
+						break;
+				}
+			}
         }
 
 		static void Main(string[] args) {
+			// ParseGameDocs("G:\\Epic Games\\SatisfactoryExperimental\\CommunityResources\\Docs\\Docs.json");
+
 			Recipe.LoadAllFromPath("Data/recipe_list.cfg");
 			BldgPlan.LoadAllFromPath("Data/bldg_plans.cfg");
 

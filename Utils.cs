@@ -30,6 +30,13 @@ public static class Utils {
 		return one;
 	}
 
+	public static double min(double one, double two) {
+		if (two < one) {
+			return two;
+        }
+		return one;
+    }
+
 	public static u8 max(u8 one, u8 two) {
 		if (two > one)
 			return two;

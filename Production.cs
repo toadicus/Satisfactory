@@ -25,8 +25,10 @@ public class Production {
 
 				Recipe rcp;
 
-				if (Recipe.TryFindRecipeFor(part.name, out rcp))
-					iterProd.Add(rcp.GetNProductionByIndex(-part.rate, 0));
+				if (Recipe.TryFindRecipeFor(part.name, out rcp)) {
+					Production rcpProd = rcp.GetNProductionOfPart(-part.rate, part);
+					iterProd.Add(rcpProd);
+				}
 			}
 
 			result.Add(iterProd);
@@ -171,6 +173,18 @@ public class Production {
 		}
 	}
 
+	public Part GetNetProductionOf(string name) {
+		if (this.Net.ContainsKey(name)) {
+			return this.Net[name];
+        } else {
+			return new Part();
+        }
+    }
+
+	public Part GetNetProductionOf(Part part) {
+		return this.GetNetProductionOf(part.name);
+    }
+
 	public void Clear() {
 		this.Gross.Clear();
 		this.Demands.Clear();
@@ -217,9 +231,9 @@ public class Production {
 	}
 
 	public void PrintPower() {
-		print("***Power Production***: {0:G4} MW".Format(this.PowerInputs.Sum()));
-		print("***Power Consumption***: {0:G4} MW".Format(this.PowerOutputs.Sum()));
-		print("***Power Balance***: {0:G4} MW".Format(this.NetPower));
+		print("***Power Production***: {0:G5} MW".Format(this.PowerInputs.Sum()));
+		print("***Power Consumption***: {0:G5} MW".Format(this.PowerOutputs.Sum()));
+		print("***Power Balance***: {0:G5} MW".Format(this.NetPower));
 	}
 
 	public void PrintAll(bool printZeroes = false) {

@@ -49,22 +49,31 @@ public class BldgPlan {
 		return new BldgPlan(name, basePower, cList, bList, rateMultiplier);
 	}
 
-	public static BldgPlan GetPlanFor(Recipe rcp) {
-		BldgPlan plan = null;
+	public static bool TryGetPlanFor(Recipe rcp, out BldgPlan plan) {
+		plan = null;
 
 		double bestMult = 0d;
 
-		foreach (BldgPlan pot in IndexByRecipe[rcp.name]) {
-			if (pot.RateMultiplier > bestMult) {
-				bestMult = pot.RateMultiplier;
-				plan = pot;
+		if (IndexByRecipe.ContainsKey(rcp.name)) {
+			foreach (BldgPlan pot in IndexByRecipe[rcp.name]) {
+				if (pot.RateMultiplier > bestMult) {
+					bestMult = pot.RateMultiplier;
+					plan = pot;
+				}
 			}
 		}
-		if (plan is null) {
+
+		return plan != null;
+	}
+
+	public static BldgPlan GetPlanFor(Recipe rcp) {
+		BldgPlan plan;
+
+		if (TryGetPlanFor(rcp, out plan)) {
+			return plan;
+        } else {
 			throw new Exception("We don't have a building for that.");
 		}
-
-		return plan;
 	}
 
 	public static Building MakeBuildingFor(Recipe rcp) {
@@ -93,26 +102,26 @@ public class BldgPlan {
 
 		BldgPlan plan = GetPlanFor(rcp);
 
-		double rcpMargin = rcp.production[index].rate * rcpMarginFactor + FUZZY_MARGIN;
+		double rcpRate = rcp.production[index].rate * plan.RateMultiplier;
+		double rcpMargin = rcpRate * rcpMarginFactor + FUZZY_MARGIN;
 
 		double newGross = demandRate + exGross;
-		double rcpRate = rcp.production[index].rate * plan.RateMultiplier;
 		double currMaxGross = rcpRate * exCount;
 
 		int count;
 
 		if (AlmostLte(newGross, currMaxGross * maxOCRate, rcpMargin)) {
-			newOCRate = max(newGross / currMaxGross, minOCRate);
+			newOCRate = min(max(newGross / currMaxGross, minOCRate), maxOCRate);
 			count = 0;
 		}
 		else if (exCount > 0) {
 			demandRate = newGross - currMaxGross * maxOCRate;
 			count = (int)FuzzyCeiling(demandRate / (rcpRate * maxOCRate), rcpMarginFactor);
-			newOCRate = max(newGross / (rcpRate * (exCount + count)), minOCRate);
+			newOCRate = min(max(newGross / (rcpRate * (exCount + count)), minOCRate), maxOCRate);
 		}
 		else {
 			count = (int)FuzzyCeiling(demandRate / (rcpRate * maxOCRate), rcpMarginFactor);
-			newOCRate = max(demandRate / (rcpRate * count), minOCRate);
+			newOCRate = min(max(demandRate / (rcpRate * count), minOCRate), maxOCRate);
 		}
 
 		Building[] bldgs = new Building[count];
@@ -143,14 +152,18 @@ public class BldgPlan {
 		return MakeBuildingsForPartTarget(rcp, target, 0, 0, out _, ocBounds);
 	}
 
-
 	public static ValueTuple<List<Building>, Production> ProcessBuildings(List<Building> bldgs, OCRateBounds ocBounds, bool ignoreCosts = false, bool ignorePower = false, bool allowDemandPreference = true, double rcpMarginFactor = 0d) {
+		Production prod = new Production();
+
+		return ProcessBuildings(prod, bldgs, ocBounds, ignoreCosts, ignorePower, allowDemandPreference, rcpMarginFactor);
+	}
+
+	public static ValueTuple<List<Building>, Production> ProcessBuildings(Production prod, List<Building> bldgs, OCRateBounds ocBounds, bool ignoreCosts = false, bool ignorePower = false, bool allowDemandPreference = true, double rcpMarginFactor = 0d) {
 		double maxOCRate = ocBounds.maxOCRate;
 
 		rcpMarginFactor += FUZZY_MARGIN;
 		u8 iters = 0;
 
-		Production prod = new Production();
 		Production costs;
 
 		List<Building> newBldgs = new List<Building>();
@@ -173,13 +186,13 @@ public class BldgPlan {
 					if (bldg.Assignment.name == primary.name) {
 						skip = true;
 						break;
-                    }
-                }
+					}
+				}
 				if (skip)
 					continue;
 
 				// We found a primary recipe for this part -- time to subloop.
-				foreach (Part secPart in minPartList.Gross.Values) {
+				foreach (Part secPart in minPartList.Demands.Values) {
 					if (secPart.name == priPart.name || secPart.name == primary.name)
 						continue;
 
@@ -191,12 +204,12 @@ public class BldgPlan {
 			}
 		}
 
-        foreach ((Recipe rcp, Part part) in priorityRcps) {
-            // If we found any priority recipes, make buildings for them first.
-            newBldgs.AddRange(MakeBuildingsForPartTarget(rcp, part, ocBounds));
-        }
+		foreach ((Recipe rcp, Part part) in priorityRcps) {
+			// If we found any priority recipes, make buildings for them first.
+			newBldgs.AddRange(MakeBuildingsForPartTarget(rcp, part, ocBounds));
+		}
 
-        prod.AddBuildings(newBldgs);
+		prod.AddBuildings(newBldgs);
 		bldgs.AddRange(newBldgs);
 		newBldgs.Clear();
 
@@ -204,7 +217,7 @@ public class BldgPlan {
 
 		while ((!ignorePower && AlmostLt(prod.NetPower, 0d)) || prod.HasNegativeNet(margin) || (!ignoreCosts && missingCosts != null && missingCosts.Count > 0)) {
 			margin = FUZZY_MARGIN;
-			if (++iters > 254)
+			if (++iters > 127)
 				throw new Exception("This is running away.");
 
 			newBldgs.Clear();
@@ -233,28 +246,53 @@ public class BldgPlan {
 				}
 			}
 
-			preferDemands.Clear();
-
 			foreach (Part part in prod.Net.Values) {
 				Recipe rcp;
 				if (!Recipe.TryFindRecipeFor(part.name, out rcp, preferDemands, rcpMarginFactor)) {
 					throw new Exception("Critical error: Could not find recipe for part named {0} while balancing production.".Format(part.name));
-                }
+				}
 
-				double rcpRate = rcp.GetRateOfPart(part);
+				BldgPlan plan = BldgPlan.GetPlanFor(rcp);
+
+				double rcpRate = rcp.GetProdRateOfPart(part) * plan.RateMultiplier;
 				double rcpMargin = rcpRate * rcpMarginFactor + FUZZY_MARGIN;
+				double partRate = part.rate;
 
-				if (AlmostGte(part.rate, 0, rcpMargin)) {
-					if (allowDemandPreference)
+				if (AlmostGt(partRate, 0, rcpMargin * 2)) {
+					if (allowDemandPreference && prod.Demands.ContainsKey(part.name))
 						preferDemands.Add(part);
 					continue;
 				}
 
+				for (u8 idx = 0; idx < preferDemands.Count; idx++) {
+					Part preference = preferDemands[idx];
+					bool demandRemoved = false;
+					bool rateChanged = false;
+
+					if (preference.name == part.name) {
+						preferDemands.RemoveAt(idx);
+						idx--;
+						demandRemoved = true;
+                    }
+
+					/*if (rcp.HasDemand(preference)) {
+						var rcpProdAtPreference = rcp.GetNProductionByDemand(preference.rate, preference);
+						var prefRate = rcpProdAtPreference.GetNetProductionOf(part).rate;
+						if (prefRate > rcpRate && prefRate < partRate) {
+							partRate = -prefRate;
+							rateChanged = true;
+						}
+					}*/
+
+					if (demandRemoved/* || rateChanged*/) {
+						break;
+                    }
+                }
+
 				margin = max(margin, rcpMargin);
 
-
 				double currOCRate = 1d;
-				var partBldgs = bldgs.Where(b => !(b.Assignment is null)).Where(b => b.Assignment.name == part.name);
+				var partBldgs = bldgs.Where(b => !(b.Assignment is null)).Where(b => b.Assignment.name == rcp.name);
 				int exCount = partBldgs.Count();
 
 				if (prod.Gross.ContainsKey(part.name)) {
@@ -262,7 +300,7 @@ public class BldgPlan {
 
 					// TODO: Make this target the part probably.
 					// HACK: We are going back through the whole list of buildings to find the gross rate we're actually targeting.  Production probably needs a redesign.
-					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, Building.GetGrossRateOfPartByRecipe(bldgs, rcp.name, part.name), exCount, out newOCRate, ocBounds, rcpMarginFactor: rcpMarginFactor));
+					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -partRate, 0, Building.GetGrossRateOfPartByRecipe(bldgs, rcp.name, part.name), exCount, out newOCRate, ocBounds, rcpMarginFactor: rcpMarginFactor));
 
 					if (exCount > 0) {
 						currOCRate = partBldgs.First().OCRate;
@@ -275,7 +313,7 @@ public class BldgPlan {
 					}
 				}
 				else {
-					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -part.rate, 0, out currOCRate, ocBounds, rcpMarginFactor: rcpMarginFactor));
+					newBldgs.AddRange(MakeBuildingsForNofIndex(rcp, -partRate, 0, out currOCRate, ocBounds, rcpMarginFactor: rcpMarginFactor));
 				}
 			}
 
@@ -398,7 +436,7 @@ public class BldgPlan {
 	protected List<Recipe> buildList;
 	public IList<Recipe> BuildList {
 		get {
-			return buildList.AsReadOnly();
+			return this.buildList.AsReadOnly();
 		}
 		set {
 			buildList = value as List<Recipe>;

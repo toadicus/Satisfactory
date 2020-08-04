@@ -47,7 +47,7 @@ public struct Part {
 	#endregion
 	public string name { get; private set; }
 	public string plural { get; private set; }
-	public double rate { get; private set; }
+	public double rate { get; set; }
 
 	public Part(string name, double rate, string plural = "s") {
 		this.name = name;

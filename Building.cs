@@ -4,18 +4,19 @@ using System.Linq;
 using static Utils;
 
 using u8 = System.Byte;
+using u16 = System.UInt16;
 
 public class Building {
-	public static Dictionary<string, int> CountLikeBuildings(IEnumerable<Building> bldgs, out u8 powerShardCount) {
-		Dictionary<string, int> result = new Dictionary<string, int>();
+	public static Dictionary<Tuple<string, Recipe>, int> CountLikeBuildings(IEnumerable<Building> bldgs, out u16 powerShardCount) {
+		Dictionary<Tuple<string, Recipe>, int> result = new Dictionary<Tuple<string, Recipe>, int>();
 		powerShardCount = 0;
 
 		foreach (Building bldg in bldgs) {
 			if (bldg.OCRate > 1) {
-				powerShardCount += (u8)Math.Ceiling((bldg.OCRate - 1) / 0.5);
+				powerShardCount += (u16)Math.Ceiling((bldg.OCRate - 1) / 0.5);
 			}
 
-			string key = bldg.LongString();
+			Tuple<string, Recipe> key = new Tuple<string, Recipe>(bldg.LongString(), bldg.Assignment);
 
 			if (!result.ContainsKey(key)) {
 				result[key] = 0;
@@ -26,23 +27,29 @@ public class Building {
 		return result;
 	}
 
-	public static Dictionary<string, int> CountLikeBuildings(IEnumerable<Building> bldgs) {
-		u8 _;
+	public static Dictionary<Tuple<string, Recipe>, int> CountLikeBuildings(IEnumerable<Building> bldgs) {
+		u16 _;
 		return CountLikeBuildings(bldgs, out _);
 	}
 
 	public static void PrintLikeBuildings(IEnumerable<Building> bldgs, bool printShardCount = true) {
-		u8 powerShardCount;
+		u16 powerShardCount;
 
 		var likeBuildings = CountLikeBuildings(bldgs, out powerShardCount);
 
 		var sortedKeys = likeBuildings.Keys.ToList();
-		sortedKeys.Sort();
+		sortedKeys.Sort((lhs, rhs) => {
+			if (lhs is null || lhs.Item2 is null)
+				return 1;
+			if (rhs is null || rhs.Item2 is null)
+				return -1;
+			return lhs.Item2.gen.CompareTo(rhs.Item2.gen);
+		});
 
 		print("***Buildings Summary:***");
 		foreach (var key in sortedKeys) {
 			var val = likeBuildings[key];
-			print("{0} {1}".Format(val, key));
+			print("{0} {1}".Format(val, key.Item1));
 		}
 		print("{0} Total Buildings{1}".Format(
 			likeBuildings.Values.Sum(),
@@ -115,7 +122,7 @@ public class Building {
 			if (value < 0)
 				throw new ArgumentOutOfRangeException("Building.OCRate must be non-negative.");
 			if (value > 2.5)
-				throw new ArgumentOutOfRangeException("Building.OCRate cannot be higher than 2.5.");
+				throw new ArgumentOutOfRangeException("Building.OCRate cannot be higher than 2.5 (got {0}).".Format(value));
 
 			this.ocrate = Math.Ceiling(value * 100) / 100;
 			this.Power = Plan.BasePower * Math.Pow(value, 1.6);
@@ -131,7 +138,7 @@ public class Building {
 	}
 
 	public virtual void SetOCRateForNofPart(double rate, Part part) {
-		double baseRate = Assignment.GetRateOfPart(part);
+		double baseRate = Assignment.GetProdRateOfPart(part);
 
 		double percent = Math.Ceiling(rate * 100d / baseRate);
 
@@ -139,7 +146,7 @@ public class Building {
 	}
 
 	public virtual void SetOCRateForPartTarget(Part part) {
-		double baseRate = Assignment.GetRateOfPart(part);
+		double baseRate = Assignment.GetProdRateOfPart(part);
 
 		double percent = Math.Ceiling(part.rate * 100d / baseRate);
 

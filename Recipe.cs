@@ -2,6 +2,7 @@
 using Satisfactory.Schema;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Net.Cache;
 using System.Runtime.CompilerServices;
@@ -121,12 +122,17 @@ public class Recipe {
 
 			foreach (Recipe rRcp in Recipe.IndexByPart[name]) {
 				double rRate = rRcp.GetProductionOf(name).rate;
+				BldgPlan plan;
+				if (!BldgPlan.TryGetPlanFor(rRcp, out plan)) {
+					continue;
+                }
+
 				if (preferDemands != null) {
 					bool quit = false;
 					foreach (Part preference in preferDemands) {
 						foreach (Part demand in rRcp.demands) {
-							if (demand.name == preference.name && FuzzyCompare.AlmostGte(preference.rate, demand.rate, rcpMarginFactor * preference.rate + FuzzyCompare.FUZZY_MARGIN)) {
-								rRate *= 2;
+							if (demand.name == preference.name) {
+								rRate *= 1 + preference.rate / demand.rate;
 								quit = true;
 								break;
                             }
@@ -141,7 +147,8 @@ public class Recipe {
 				}
 			}
 
-			rcp = bestRcp;
+			if (rate > 0)
+				rcp = bestRcp;
 		}
 
 		return rcp != null;
@@ -233,7 +240,7 @@ public class Recipe {
 		}
 
 		foreach (Recipe rcp in Recipe.List) {
-			rcp.CalculateGeneration();
+			rcp.gen = rcp.CalculateGeneration();
         }
 	}
 	#endregion
@@ -254,11 +261,11 @@ public class Recipe {
 		}
 	}
 
-	public double GetRateOfPart(Part part) {
-		return GetRateByName(part.name);
+	public double GetProdRateOfPart(Part part) {
+		return GetProdRateByName(part.name);
 	}
 
-	public double GetRateByName(string partName) {
+	public double GetProdRateByName(string partName) {
 		foreach (Part p in this.production) {
 			if (p.name == partName) {
 				return p.rate;
@@ -267,6 +274,21 @@ public class Recipe {
 
 		throw new KeyNotFoundException("Recipe {0} does not provide part {1}".Format(this.name, partName));
     }
+
+	public double GetDemandRateByName(string demName) {
+		foreach (Part d in this.demands) {
+			if (d.name == demName) {
+				return d.rate;
+            }
+        }
+
+		throw new KeyNotFoundException("Recipe {0} does not demand part {1}".Format(this.name, demName));
+    }
+
+	public double GetDemandRateOfPart(Part part) {
+		return GetDemandRateByName(part.name);
+
+	}
 
 	public bool TryGetIndexOf(string name, out u8 idx) {
 		u8 _idx;
@@ -315,16 +337,22 @@ public class Recipe {
 	}
 
 	public Production GetNProductionByIndex(double req, u8 idx) {
-		double rate = req / this.production[idx].rate;
+		double mult = req / this.production[idx].rate;
 
-		return GetProductionAtMultiplier(rate);
+		return GetProductionAtMultiplier(mult);
 	}
 
 	public Production GetNProductionOfPart(double req, Part part) {
-		double rate = part.rate / GetRateOfPart(part);
+		double mult = req / GetProdRateOfPart(part);
 
-		return GetProductionAtMultiplier(rate);
+		return GetProductionAtMultiplier(mult);
 	}
+
+	public Production GetNProductionByDemand(double req, Part part) {
+		double mult = req / GetDemandRateOfPart(part);
+
+		return GetProductionAtMultiplier(mult);
+    }
 
 	public Part GetProductionOf(string name) {
 		foreach (Part p in this.production) {
@@ -344,11 +372,22 @@ public class Recipe {
 		return provides.Contains(partName);
 	}
 
+	public bool HasDemand(string name) {
+		return this.demands.Any(p => p.name == name);
+    }
+
+	public bool HasDemand(Part part) {
+		return this.HasDemand(part.name);
+    }
+
 	public override string ToString() {
 		return string.Join(", ", this.production.ConvertAll(p => p.ToString()));
 	}
 
 	public u8 CalculateGeneration() {
+		if (this.gen > 0)
+			return this.gen;
+
 		u8 g = 1;
 
 		u8 sub = 0;
